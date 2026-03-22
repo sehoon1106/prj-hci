@@ -508,3 +508,8 @@ body {
 .admin-back-link:hover {
   color: #c4d4ff;
 }
+
+.admin-warn-strong {
+  color: #fde68a;
+  font-weight: 600;
+}

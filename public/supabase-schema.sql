@@ -25,11 +25,20 @@ create policy "anon_insert_study_submissions"
   to anon
   with check (true);
 
--- Team dashboard (#/admin): only Supabase Auth users (authenticated) can read rows.
--- Add accounts: Supabase → Authentication → Users (email + password or invite).
-drop policy if exists "authenticated_select_study_submissions" on public.study_submissions;
-create policy "authenticated_select_study_submissions"
+-- Team dashboard (#/admin), no login: allow anon SELECT.
+-- WARNING: the anon key ships in the browser bundle — anyone with your site URL can read all rows.
+-- Do not use for identifiable or highly sensitive data unless the study URL is strictly private.
+drop policy if exists "anon_select_study_submissions" on public.study_submissions;
+create policy "anon_select_study_submissions"
   on public.study_submissions
   for select
-  to authenticated
+  to anon
   using (true);
+
+-- Optional — login-only dashboard: drop anon_select above, then enable authenticated SELECT instead.
+-- drop policy if exists "authenticated_select_study_submissions" on public.study_submissions;
+-- create policy "authenticated_select_study_submissions"
+--   on public.study_submissions
+--   for select
+--   to authenticated
+--   using (true);

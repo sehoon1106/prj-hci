@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getSupabaseClient } from '../lib/supabaseClient'
-import type { User } from '@supabase/supabase-js'
 
 const LIST_LIMIT = 500
 
@@ -30,13 +29,6 @@ function formatTs(iso: string) {
 
 export function TeamSubmissionsDashboard() {
   const supabase = getSupabaseClient()
-  const [user, setUser] = useState<User | null>(null)
-  const [authReady, setAuthReady] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [authBusy, setAuthBusy] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
-
   const [rows, setRows] = useState<StudySubmissionRow[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(false)
@@ -51,25 +43,8 @@ export function TeamSubmissionsDashboard() {
     return () => window.removeEventListener('keydown', onKey)
   }, [selected])
 
-  useEffect(() => {
-    if (!supabase) {
-      setAuthReady(true)
-      return
-    }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setAuthReady(true)
-    })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [supabase])
-
   const loadRows = useCallback(async () => {
-    if (!supabase || !user) return
+    if (!supabase) return
     setLoadingList(true)
     setLoadError(null)
     const { data, error } = await supabase
@@ -85,32 +60,11 @@ export function TeamSubmissionsDashboard() {
       setRows((data ?? []) as StudySubmissionRow[])
     }
     setLoadingList(false)
-  }, [supabase, user])
+  }, [supabase])
 
   useEffect(() => {
-    if (user) void loadRows()
-    else setRows([])
-  }, [user, loadRows])
-
-  const signIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!supabase) return
-    setAuthBusy(true)
-    setAuthError(null)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
-    if (error) setAuthError(error.message)
-    setAuthBusy(false)
-  }
-
-  const signOut = async () => {
-    if (!supabase) return
-    setAuthError(null)
-    await supabase.auth.signOut()
-    setSelected(null)
-  }
+    if (supabase) void loadRows()
+  }, [supabase, loadRows])
 
   if (!supabase) {
     return (
@@ -127,14 +81,6 @@ export function TeamSubmissionsDashboard() {
     )
   }
 
-  if (!authReady) {
-    return (
-      <div className="shell admin-shell">
-        <p className="loading">Loading…</p>
-      </div>
-    )
-  }
-
   return (
     <div className="shell admin-shell">
       <div className="card">
@@ -143,104 +89,61 @@ export function TeamSubmissionsDashboard() {
             <p className="eyebrow">Researcher</p>
             <h1>Study submissions</h1>
             <p className="muted small">
-              Sign in with a Supabase Auth account your team was given. Participant responses stay
-              private from anonymous visitors; only logged-in users with SELECT permission can see
-              this list.
+              이 목록은 로그인 없이 열람합니다. 배포 사이트의 anon 키로 읽으므로,{' '}
+              <strong className="admin-warn-strong">URL을 아는 사람은 누구나</strong> 이 데이터에 접근할 수
+              있습니다. 민감한 응답이면 Supabase에서 anon SELECT 정책을 제거하고 Auth 기반으로 다시
+              보호하는 편이 안전합니다.
             </p>
           </div>
-          {user ? (
-            <div className="admin-header-actions">
-              <span className="muted small">{user.email}</span>
-              <button type="button" className="btn secondary" onClick={() => void loadRows()} disabled={loadingList}>
-                {loadingList ? 'Refreshing…' : 'Refresh'}
-              </button>
-              <button type="button" className="btn secondary" onClick={() => void signOut()}>
-                Sign out
-              </button>
-            </div>
-          ) : null}
+          <div className="admin-header-actions">
+            <button type="button" className="btn secondary" onClick={() => void loadRows()} disabled={loadingList}>
+              {loadingList ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         </header>
 
-        {!user ? (
-          <form className="admin-login" onSubmit={(e) => void signIn(e)}>
-            {authError ? <div className="error-banner admin-banner">{authError}</div> : null}
-            <label className="survey-block">
-              <span className="survey-prompt">Email</span>
-              <input
-                className="survey-input"
-                type="email"
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-            <label className="survey-block">
-              <span className="survey-prompt">Password</span>
-              <input
-                className="survey-input"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
-            <div className="btn-row">
-              <button type="submit" className="btn primary" disabled={authBusy}>
-                {authBusy ? 'Signing in…' : 'Sign in'}
-              </button>
-            </div>
-            <p className="muted small admin-hint">
-              Add team accounts in Supabase → Authentication → Users, and run the SQL in{' '}
-              <code className="inline-code">public/supabase-schema.sql</code> (including the
-              authenticated SELECT policy).
-            </p>
-          </form>
-        ) : (
-          <>
-            {loadError ? <div className="error-banner admin-banner">{loadError}</div> : null}
-            <p className="muted small admin-meta">
-              Showing up to {LIST_LIMIT} rows, newest first.
-              {rows.length >= LIST_LIMIT ? ' Older rows are not loaded.' : ''}
-            </p>
-            <div className="admin-table-wrap">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Submitted</th>
-                    <th>Session</th>
-                    <th>Condition</th>
-                    <th>Schema</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.length === 0 && !loadingList ? (
-                    <tr>
-                      <td colSpan={5} className="admin-empty">
-                        No rows yet, or you lack permission to read the table.
-                      </td>
-                    </tr>
-                  ) : null}
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td>{formatTs(r.submitted_at)}</td>
-                      <td className="admin-mono">{r.session_id.slice(0, 8)}…</td>
-                      <td>{r.condition_key}</td>
-                      <td>{r.schema_version}</td>
-                      <td>
-                        <button type="button" className="btn secondary btn-tiny" onClick={() => setSelected(r)}>
-                          JSON
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        {loadError ? <div className="error-banner admin-banner">{loadError}</div> : null}
+        <p className="muted small admin-meta">
+          Showing up to {LIST_LIMIT} rows, newest first.
+          {rows.length >= LIST_LIMIT ? ' Older rows are not loaded.' : ''}
+        </p>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>Session</th>
+                <th>Condition</th>
+                <th>Schema</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && !loadingList ? (
+                <tr>
+                  <td colSpan={5} className="admin-empty">
+                    No rows yet, or RLS does not allow anon SELECT (run{' '}
+                    <code className="inline-code">anon_select_study_submissions</code> in{' '}
+                    <code className="inline-code">public/supabase-schema.sql</code>).
+                  </td>
+                </tr>
+              ) : null}
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{formatTs(r.submitted_at)}</td>
+                  <td className="admin-mono">{r.session_id.slice(0, 8)}…</td>
+                  <td>{r.condition_key}</td>
+                  <td>{r.schema_version}</td>
+                  <td>
+                    <button type="button" className="btn secondary btn-tiny" onClick={() => setSelected(r)}>
+                      JSON
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {selected ? (
