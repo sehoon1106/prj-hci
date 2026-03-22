@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '../lib/supabaseClient'
 
 export interface SubmissionPayload {
   schemaVersion: number
@@ -25,26 +25,6 @@ function downloadJson(data: SubmissionPayload) {
   URL.revokeObjectURL(a.href)
 }
 
-let supabaseClient: SupabaseClient | null = null
-let loggedMissingSupabaseEnv = false
-
-function getSupabase(): SupabaseClient | null {
-  const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()
-  const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
-  if (!url || !key) {
-    if (import.meta.env.DEV && !loggedMissingSupabaseEnv) {
-      loggedMissingSupabaseEnv = true
-      console.info(
-        '[memory-study] Supabase is off: missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
-          'Add them to .env, then restart the dev server. See .env.example.',
-      )
-    }
-    return null
-  }
-  if (!supabaseClient) supabaseClient = createClient(url, key)
-  return supabaseClient
-}
-
 /**
  * Saving to Supabase requires a `study_submissions` table in the public schema.
  * See public/supabase-schema.sql for the SQL.
@@ -52,7 +32,7 @@ function getSupabase(): SupabaseClient | null {
 export async function submitResults(
   payload: SubmissionPayload,
 ): Promise<{ ok: boolean; method: 'supabase' | 'download' | 'failed'; error?: string }> {
-  const client = getSupabase()
+  const client = getSupabaseClient()
   if (client) {
     const { error } = await client.from('study_submissions').insert({
       session_id: payload.sessionId,

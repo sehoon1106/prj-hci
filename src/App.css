@@ -348,3 +348,163 @@ body {
   border-radius: 10px;
   color: #b8e0c8;
 }
+
+/* Team submissions dashboard (#/admin) */
+.admin-shell {
+  max-width: min(1100px, 100%);
+}
+
+.inline-code {
+  font-size: 0.88em;
+  padding: 0.12em 0.35em;
+  border-radius: 6px;
+  background: #151b2e;
+  border: 1px solid #2c3754;
+}
+
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-login {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 22rem;
+}
+
+.admin-banner {
+  margin-bottom: 0;
+}
+
+.admin-hint {
+  margin: 0;
+}
+
+.admin-meta {
+  margin: 0 0 0.75rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #242e45;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid #242e45;
+}
+
+.admin-table th {
+  color: #9aa3b5;
+  font-weight: 600;
+  background: #0e1424;
+}
+
+.admin-table tbody tr:hover td {
+  background: rgba(79, 124, 255, 0.06);
+}
+
+.admin-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.admin-empty {
+  color: #8b93a8;
+  padding: 1.25rem !important;
+}
+
+.btn-tiny {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.admin-modal {
+  max-width: min(720px, 100%);
+  width: 100%;
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.5rem;
+}
+
+.admin-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.admin-json {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: #05070e;
+  border: 1px solid #2a334a;
+  color: #c8cfdf;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-footer {
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+.admin-back-link {
+  background: none;
+  border: none;
+  color: #9ab7ff;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.admin-back-link:hover {
+  color: #c4d4ff;
+}

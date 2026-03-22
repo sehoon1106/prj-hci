@@ -25,4 +25,11 @@ create policy "anon_insert_study_submissions"
   to anon
   with check (true);
 
--- Optional: allow SELECT only via service role for dashboards, or add SELECT for researcher roles.
+-- Team dashboard (#/admin): only Supabase Auth users (authenticated) can read rows.
+-- Add accounts: Supabase → Authentication → Users (email + password or invite).
+drop policy if exists "authenticated_select_study_submissions" on public.study_submissions;
+create policy "authenticated_select_study_submissions"
+  on public.study_submissions
+  for select
+  to authenticated
+  using (true);
