@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "attention2",
+  "title": "Attention check (2)",
+  "pages": [
+    {
+      "id": "attention2_page",
+      "title": "Attention check",
+      "description": "We are checking that you are still paying attention after the previous step.",
+      "items": [
+        {
+          "id": "att_check_2",
+          "type": "attention_mc",
+          "prompt": "What did you do in the step you just completed?",
+          "options": [
+            { "value": "wrong_a", "label": "Took a long rest / nap" },
+            { "value": "correct", "label": "Played a short Pac-Man–style game" },
+            { "value": "wrong_b", "label": "Listened to music" },
+            { "value": "wrong_c", "label": "I don't remember" }
+          ],
+          "correctValue": "correct"
+        }
+      ]
+    }
+  ]
+}

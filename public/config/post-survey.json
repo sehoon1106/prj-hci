@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "id": "post",
+  "title": "Post-study questionnaire",
+  "pages": [
+    {
+      "id": "demographics",
+      "title": "Demographics",
+      "items": [
+        {
+          "id": "age",
+          "type": "number",
+          "prompt": "Age (years)",
+          "min": 18,
+          "max": 100,
+          "required": true
+        },
+        {
+          "id": "gender",
+          "type": "single_choice",
+          "prompt": "Gender",
+          "required": true,
+          "options": [
+            { "value": "female", "label": "Female" },
+            { "value": "male", "label": "Male" },
+            { "value": "nonbinary", "label": "Non-binary" },
+            { "value": "prefer_not", "label": "Prefer not to say" },
+            { "value": "self_describe", "label": "Self-describe (enter below)" }
+          ]
+        },
+        {
+          "id": "gender_self",
+          "type": "text",
+          "prompt": "Self-described gender (if applicable)",
+          "required": false
+        },
+        {
+          "id": "education",
+          "type": "single_choice",
+          "prompt": "Highest level of education",
+          "required": true,
+          "options": [
+            { "value": "hs_or_less", "label": "High school or less" },
+            { "value": "some_college", "label": "Some college / incomplete degree" },
+            { "value": "bachelor", "label": "Bachelor's degree" },
+            { "value": "graduate", "label": "Graduate degree (Master's or higher)" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "moderators",
+      "title": "Attitudes and memory",
+      "description": "Example scales similar to moderator variables used in the paper. Replace items in post-survey.json as needed.",
+      "items": [
+        {
+          "id": "ai_filter_familiarity",
+          "type": "likert7",
+          "prompt": "How familiar are you with image editing or AI filters (e.g., Instagram filters, auto-enhance)?",
+          "labels": { "min": "Not at all familiar", "max": "Very familiar" },
+          "required": true
+        },
+        {
+          "id": "forgetting_frequency",
+          "type": "likert7",
+          "prompt": "In daily life, how often do you have problems forgetting where you put things or missing appointments? (Higher = fewer problems)",
+          "labels": { "min": "Serious problems", "max": "Almost no problems" },
+          "required": true
+        },
+        {
+          "id": "memory_efficacy_visual",
+          "type": "likert7",
+          "prompt": "How well do you tend to remember scenes or photos you saw recently?",
+          "labels": { "min": "Not at all", "max": "Very well" },
+          "required": true
+        },
+        {
+          "id": "skepticism_media",
+          "type": "likert7",
+          "prompt": "How much do you doubt information from official news or institutions?",
+          "labels": { "min": "Do not doubt at all", "max": "Strongly doubt" },
+          "required": true
+        }
+      ]
+    }
+  ]
+}

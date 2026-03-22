@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "title": "Visual Memory and Media Study",
+  "shortDescription": "This study is a short task where you view photographs and answer memory questions. It takes about 15–20 minutes.",
+  "consentText": "This research is for academic purposes and your responses will be handled anonymously. Participation is voluntary and you may stop at any time. If you agree, you may begin below.",
+  "baselinePhaseTitle": "First image set",
+  "baselinePhaseInstructions": "The following images are similar to everyday, news, or documentary-style scenes. Browse each scene naturally. Swipe the screen or use the buttons to move between images. After the minimum viewing time (about 2 minutes), the study will move on automatically.",
+  "conditionPhaseTitle": "AI-enhanced image",
+  "conditionPhaseInstructions": "These are \"AI-enhanced\" versions related to the scenes you saw earlier. You cannot return to the previous set. Use the Next/Previous buttons to view all 24 items.",
+  "memoryPhaseTitle": "Memory test",
+  "memoryPhaseInstructions": "The questions below refer to the original photographs you saw first. For each item, choose Agree / Disagree / Not sure, then rate how confident you are on a scale of 1–7.",
+  "randomizeCondition": true,
+  "conditionKeys": [
+    "control",
+    "ai_edited_image",
+    "ai_video_unedited",
+    "ai_video_edited"
+  ],
+  "conditionLabels": {
+    "control": "Control (same static image as original)",
+    "ai_edited_image": "AI-edited static image",
+    "ai_video_unedited": "AI video from original (placeholder)",
+    "ai_video_edited": "AI video from AI-edited source (placeholder)"
+  },
+  "baselineDurationSeconds": 120,
+  "showConditionKeyToParticipant": false
+}

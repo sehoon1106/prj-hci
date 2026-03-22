@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "slides": [
+    {
+      "id": "slide-01",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+1",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+1",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+1",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+1",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+1"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-02",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+2",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+2",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+2",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+2",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+2"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-03",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+3",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+3",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+3",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+3",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+3"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-04",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+4",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+4",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+4",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+4",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+4"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-05",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+5",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+5",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+5",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+5",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+5"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-06",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+6",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+6",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+6",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+6",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+6"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-07",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+7",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+7",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+7",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+7",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+7"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-08",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+8",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+8",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+8",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+8",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+8"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-09",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+9",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+9",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+9",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+9",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+9"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-10",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+10",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+10",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+10",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+10",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+10"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-11",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+11",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+11",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+11",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+11",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+11"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-12",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+12",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+12",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+12",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+12",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+12"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-13",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+13",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+13",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+13",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+13",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+13"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-14",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+14",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+14",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+14",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+14",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+14"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-15",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+15",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+15",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+15",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+15",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+15"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-16",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+16",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+16",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+16",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+16",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+16"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-17",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+17",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+17",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+17",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+17",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+17"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-18",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+18",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+18",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+18",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+18",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+18"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-19",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+19",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+19",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+19",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+19",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+19"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-20",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+20",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+20",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+20",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+20",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+20"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-21",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+21",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+21",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+21",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+21",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+21"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-22",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+22",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+22",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+22",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+22",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+22"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-23",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+23",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+23",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+23",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+23",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+23"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    },
+    {
+      "id": "slide-24",
+      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+24",
+      "conditionSrc": {
+        "control": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+24",
+        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+24",
+        "ai_video_unedited": "https://placehold.co/800x600/0d2137/d0e8ff?text=AI+video+(orig)+24",
+        "ai_video_edited": "https://placehold.co/800x600/1a2744/c8fff0?text=AI+video+(edited)+24"
+      },
+      "conditionMediaType": {
+        "control": "image",
+        "ai_edited_image": "image",
+        "ai_video_unedited": "image",
+        "ai_video_edited": "image"
+      }
+    }
+  ]
+}

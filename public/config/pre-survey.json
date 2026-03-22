@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "pre",
+  "title": "Pre-study questionnaire",
+  "pages": [
+    {
+      "id": "attention1",
+      "title": "Attention check",
+      "description": "Read the instructions carefully and select the correct answer.",
+      "items": [
+        {
+          "id": "att_check_1",
+          "type": "attention_mc",
+          "prompt": "What will you do first in this study? (Choose the one that matches the instructions.)",
+          "options": [
+            { "value": "wrong_a", "label": "Only fill out questionnaires" },
+            { "value": "wrong_b", "label": "Only watch videos and finish" },
+            { "value": "correct", "label": "View images first, then continue with later steps" },
+            { "value": "wrong_c", "label": "Pick anything to get paid" }
+          ],
+          "correctValue": "correct"
+        }
+      ]
+    }
+  ]
+}
