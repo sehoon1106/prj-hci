@@ -1,7 +1,13 @@
 # GitHub Pages: push to main → build (Vite) → deploy dist/
 # Repo Settings → Pages → Build and deployment → Source: GitHub Actions
-# Repo Settings → Secrets and variables → Actions → add:
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (optional but needed for live Supabase)
+#
+# Supabase must be present at *build* time (Vite bakes VITE_* into the bundle).
+# Use either:
+#   - Repository secrets: Settings → Secrets and variables → Actions → Secrets, OR
+#   - Repository variables: same page → Variables (names must match below), OR
+#   - Environment secrets: must use job environment `github-pages` on the build job.
+#
+# Names: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 
 name: Deploy to GitHub Pages
 
@@ -22,6 +28,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # So secrets stored on the `github-pages` environment are visible during `npm run build`.
+    environment:
+      name: github-pages
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,8 +42,9 @@ jobs:
         env:
           # Project site URL: https://<user>.github.io/<repo>/
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Repository secret/variable or environment secret (build uses github-pages env).
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

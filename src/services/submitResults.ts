@@ -77,5 +77,10 @@ export async function submitResults(
     }
   }
   downloadJson(payload)
-  return { ok: true, method: 'download' }
+  return {
+    ok: true,
+    method: 'download',
+    error:
+      'This build has no Supabase URL/key (they must be set as GitHub Actions secrets or variables when the site is built, then redeploy).',
+  }
 }
