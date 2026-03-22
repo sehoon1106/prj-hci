@@ -33,7 +33,7 @@ npm run preview # preview dist
 8. **Post-survey** (`post-survey.json`)  
 9. On completion — **submit** (Supabase or JSON download)
 
-Participants are **randomly assigned** to one of four conditions at session start: `control`, `ai_edited_image`, `ai_video_unedited`, `ai_video_edited` (`conditionKeys` / `randomizeCondition` in `study.json`).
+Participants are **randomly assigned** to one of two conditions at session start: `no_edit`, `ai_edited_image` (`conditionKeys` / `randomizeCondition` in `study.json`).
 
 ## Config files (`public/config/`)
 
@@ -90,7 +90,7 @@ One row (Supabase) or one downloaded JSON object = **one participant session** (
 |----------------------|-----------------|--------|
 | `schemaVersion` | `schema_version` | Payload format version (currently `1`) |
 | `sessionId` | `session_id` | Unique ID for this run (UUID string) |
-| `conditionKey` | `condition_key` | Assigned stimulus condition: `control`, `ai_edited_image`, `ai_video_unedited`, or `ai_video_edited` |
+| `conditionKey` | `condition_key` | Assigned stimulus condition: `no_edit` or `ai_edited_image` |
 | `submittedAt` | `submitted_at` | ISO timestamp when submit ran |
 | `userAgent` | `user_agent` | Browser user-agent string |
 | `preSurvey` | `pre_survey` | Object: keys = item `id` from `pre-survey.json`, values = participant answer (string or number) |
@@ -193,7 +193,7 @@ To filter events you typically `jsonb_array_elements(event_log)` in Postgres or 
 
 ### Quick analysis tips
 
-1. **Between-subjects factor:** `condition_key` (which AI / control stimulus they saw in the second block).  
+1. **Between-subjects factor:** `condition_key` (`no_edit` vs `ai_edited_image` in the second block).  
 2. **Merge memory with stimuli:** join `memoryResponses[].slideId` with `slides.json` and the participant’s `condition_key` to know which URL they studied.  
 3. **Quality filters:** drop sessions with `survey_debug_skip_entire`, `baseline_debug_skip`, etc., if you used debug buttons during data collection.  
 4. **Supabase export:** Table Editor → Export, or SQL `select * from study_submissions` — JSON columns parse as nested objects in most tools.

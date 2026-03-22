@@ -1,8 +1,4 @@
-export type ConditionKey =
-  | 'control'
-  | 'ai_edited_image'
-  | 'ai_video_unedited'
-  | 'ai_video_edited'
+export type ConditionKey = 'no_edit' | 'ai_edited_image'
 
 export type StudyPhase =
   | 'intro'
