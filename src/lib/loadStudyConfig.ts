@@ -9,10 +9,11 @@ async function fetchJson<T>(name: string): Promise<T> {
 }
 
 export async function loadStudyBundle(): Promise<StudyBundle> {
-  const [study, filler, preSurvey, attention2, postSurvey, slides, memory] =
+  const [study, filler, demographics, preSurvey, attention2, postSurvey, slides, memory] =
     await Promise.all([
       fetchJson<StudyBundle['study']>('study.json'),
       fetchJson<StudyBundle['filler']>('filler.json'),
+      fetchJson<StudyBundle['demographics']>('demographics.json'),
       fetchJson<StudyBundle['preSurvey']>('pre-survey.json'),
       fetchJson<StudyBundle['attention2']>('attention-2.json'),
       fetchJson<StudyBundle['postSurvey']>('post-survey.json'),
@@ -23,6 +24,7 @@ export async function loadStudyBundle(): Promise<StudyBundle> {
   return {
     study,
     filler,
+    demographics,
     preSurvey,
     attention2,
     postSurvey,

@@ -2,6 +2,7 @@ export type ConditionKey = 'no_edit' | 'ai_edited_image'
 
 export type StudyPhase =
   | 'intro'
+  | 'demographics'
   | 'pre_survey'
   | 'baseline'
   | 'filler'
@@ -106,6 +107,8 @@ export interface StudyMeta {
   schemaVersion: number
   title: string
   shortDescription: string
+  /** Shown on the consent page as a short bulleted overview (English copy lives in study.json). */
+  procedureSteps?: string[]
   consentText: string
   baselinePhaseTitle: string
   baselinePhaseInstructions: string
@@ -142,11 +145,28 @@ export interface MemoryResponse {
   slideId: string
   recall: 'agree' | 'disagree' | 'unsure'
   confidence: number
+  /** Ground-truth key from `memory-items.json`, if present. */
+  expectedAnswer?: 'agree' | 'disagree'
+  /**
+   * `true` if participant choice matches `expectedAnswer`.
+   * `null` if there is no key, or recall was "unsure" (no binary score).
+   */
+  isCorrect: boolean | null
+}
+
+export function memoryTrialCorrectness(
+  recall: 'agree' | 'disagree' | 'unsure',
+  expectedAnswer: 'agree' | 'disagree' | undefined,
+): boolean | null {
+  if (expectedAnswer === undefined) return null
+  if (recall === 'unsure') return null
+  return recall === expectedAnswer
 }
 
 export interface StudyBundle {
   study: StudyMeta
   filler: FillerConfig
+  demographics: SurveyConfig
   preSurvey: SurveyConfig
   attention2: SurveyConfig
   postSurvey: SurveyConfig

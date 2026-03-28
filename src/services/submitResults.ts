@@ -6,6 +6,7 @@ export interface SubmissionPayload {
   conditionKey: string
   submittedAt: string
   userAgent: string
+  demographics: Record<string, unknown>
   preSurvey: Record<string, unknown>
   attention2: Record<string, unknown>
   postSurvey: Record<string, unknown>
@@ -40,6 +41,7 @@ export async function submitResults(
       submitted_at: payload.submittedAt,
       user_agent: payload.userAgent,
       schema_version: payload.schemaVersion,
+      demographics: payload.demographics,
       pre_survey: payload.preSurvey,
       attention2: payload.attention2,
       post_survey: payload.postSurvey,

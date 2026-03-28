@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "demographics",
+  "title": "Demographics",
+  "pages": [
+    {
+      "id": "demographics_main",
+      "title": "Participant information",
+      "description": "You have completed the consent step. Please answer the items below before the study tasks begin.",
+      "items": [
+        {
+          "id": "demo_name",
+          "type": "text",
+          "prompt": "Name"
+        },
+        {
+          "id": "demo_age",
+          "type": "number",
+          "prompt": "Age",
+          "min": 1,
+          "max": 120
+        },
+        {
+          "id": "demo_gender",
+          "type": "single_choice",
+          "prompt": "Gender",
+          "options": [
+            { "value": "male", "label": "Male" },
+            { "value": "female", "label": "Female" },
+            { "value": "nonbinary", "label": "Non-binary" },
+            { "value": "prefer_not", "label": "Prefer not to say" },
+            { "value": "other", "label": "Other" }
+          ]
+        },
+        {
+          "id": "demo_occupation",
+          "type": "text",
+          "prompt": "Occupation"
+        },
+        {
+          "id": "demo_major",
+          "type": "text",
+          "prompt": "Field of study or major (enter “N/A” if not applicable)"
+        }
+      ]
+    }
+  ]
+}

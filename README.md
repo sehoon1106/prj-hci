@@ -119,18 +119,34 @@ For analysis vs ground truth, set `expectedAnswer` in `memory-items.json` per it
 
 `filler_stats` is a **single JSON object** saved on the final payload. It summarizes the **filler phase only** (the task between baseline and attention-check 2)—not the whole study.
 
-**Normal completion — Pac-Man** (`filler.json` has `"type": "pacman"`):
+**Normal completion — Pac-Man** (`filler.json` has `"type": "pacman"`), using the `react-pacman` embed:
 
 | Key | Type | Meaning |
 |-----|------|--------|
-| `dotsEaten` | number | Pellets collected before the timer ended |
+| `type` | string | `"pacman"` |
+| `dotsEaten` | number | Same as **`maxPacmanScore`** (kept for backward compatibility) |
+| `maxPacmanScore` | number | Highest on-screen score in this filler (across restarts / rounds) |
+| `pacmanRoundScores` | number[] | Final score after each completed round (each “다시 하기” snapshots the prior round; the filler timer appends the last round) |
 | `durationMs` | number | Milliseconds from “Start game” until the filler ended (≈ configured minimum × 1000) |
-| `keyStrokes` | number | Arrow-key / on-screen control presses counted by the game |
+| `keyStrokes` | number | Arrow / WASD presses counted during the filler |
+| `gameLibrary` | string | `"react-pacman"` |
+| `fillerEndPacmanScore` | number | (optional) Score captured when the filler timer hit zero; can be lower than `maxPacmanScore` if an earlier round was higher |
+
+**Maximum score:** `maxPacmanScore` / `dotsEaten` are `Math.max` over every completed round plus the **buzzer** score (last moment of the filler, including mid-game if the timer ends before game over).
 
 Example:
 
 ```json
-{ "dotsEaten": 142, "durationMs": 120412, "keyStrokes": 89 }
+{
+  "type": "pacman",
+  "dotsEaten": 142,
+  "maxPacmanScore": 142,
+  "pacmanRoundScores": [80, 142],
+  "fillerEndPacmanScore": 142,
+  "durationMs": 60100,
+  "keyStrokes": 89,
+  "gameLibrary": "react-pacman"
+}
 ```
 
 **Normal completion — countdown filler** (any `type` other than `"pacman"`):

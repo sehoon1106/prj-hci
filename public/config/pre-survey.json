@@ -11,12 +11,15 @@
         {
           "id": "att_check_1",
           "type": "attention_mc",
-          "prompt": "What will you do first in this study? (Choose the one that matches the instructions.)",
+          "prompt": "After you finish this pre-study questionnaire, what is the next main part of the study?",
           "options": [
-            { "value": "wrong_a", "label": "Only fill out questionnaires" },
-            { "value": "wrong_b", "label": "Only watch videos and finish" },
-            { "value": "correct", "label": "View images first, then continue with later steps" },
-            { "value": "wrong_c", "label": "Pick anything to get paid" }
+            { "value": "wrong_a", "label": "The study ends and you submit right away" },
+            {
+              "value": "wrong_b",
+              "label": "You only fill out more questionnaires—there are no photograph-viewing steps"
+            },
+            { "value": "correct", "label": "You view a first set of photographs, then continue with later steps" },
+            { "value": "wrong_c", "label": "You skip to the final questions without viewing any images" }
           ],
           "correctValue": "correct"
         }

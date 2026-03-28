@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "type": "pacman",
-  "durationSeconds": 60,
+  "durationSeconds": 120,
   "title": "Short break: Pac-Man",
-  "instructions": "As in the paper procedure, please play a simple Pac-Man–style game for about 1 minute. Use the arrow keys (or on-screen buttons) to move, eat dots, and play until the timer ends. When time is up you can continue to the next step.",
-  "minDurationSeconds": 60
+  "instructions": "Please focus only on playing this Pac-Man-style game—avoid multitasking, other tabs, or other activities during this break. Use the W A S D keys to move, eat dots, and keep playing. This break lasts about two minutes; when the timer ends, the study moves on automatically—you cannot stay on this screen longer.",
+  "minDurationSeconds": 120
 }

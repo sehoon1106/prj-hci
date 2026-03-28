@@ -13,10 +13,13 @@
           "type": "attention_mc",
           "prompt": "What did you do in the step you just completed?",
           "options": [
-            { "value": "wrong_a", "label": "Took a long rest / nap" },
+            { "value": "wrong_a", "label": "Watched a short video clip" },
+            {
+              "value": "wrong_b",
+              "label": "Clicked through text instructions only—there was no interactive game"
+            },
             { "value": "correct", "label": "Played a short Pac-Man–style game" },
-            { "value": "wrong_b", "label": "Listened to music" },
-            { "value": "wrong_c", "label": "I don't remember" }
+            { "value": "wrong_c", "label": "Rated a series of images for how pleasant they looked" }
           ],
           "correctValue": "correct"
         }

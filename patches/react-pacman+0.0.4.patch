@@ -1,0 +1,47 @@
+diff --git a/node_modules/react-pacman/dist/game/index.js b/node_modules/react-pacman/dist/game/index.js
+index 6a2487f..99ed956 100644
+--- a/node_modules/react-pacman/dist/game/index.js
++++ b/node_modules/react-pacman/dist/game/index.js
+@@ -25,6 +25,13 @@ export function animate(state) {
+ 
+   // get the next game state as a function of time
+   var timeSeconds = (time - state.stepTime) / 1000;
++  // Cap delta so tab backgrounding / event-loop stalls cannot trigger tunnel-wrap teleport bugs
++  var MAX_STEP_SECONDS = 0.05;
++  if (!Number.isFinite(timeSeconds) || timeSeconds < 0) {
++    timeSeconds = 0;
++  } else if (timeSeconds > MAX_STEP_SECONDS) {
++    timeSeconds = MAX_STEP_SECONDS;
++  }
+ 
+   if (state.lost) {
+     return state;
+diff --git a/node_modules/react-pacman/dist/index.js b/node_modules/react-pacman/dist/index.js
+index b1e1cb7..c05fa7a 100644
+--- a/node_modules/react-pacman/dist/index.js
++++ b/node_modules/react-pacman/dist/index.js
+@@ -94,11 +94,20 @@ var Pacman = /*#__PURE__*/function (_Component) {
+ 
+       window.addEventListener('keydown', this.onKey);
+       this.timers.start = setTimeout(function () {
+-        _this2.setState({
+-          stepTime: Date.now()
++        // Do not call step() from a setState callback: on React 18/19 `this.state`
++        // may still carry the constructor `stepTime`, yielding a ~3s tick and tunnel wrap.
++        var t = Date.now();
++        var merged = _objectSpread(_objectSpread({}, _this2.state), {}, {
++          stepTime: t
+         });
+-
+-        _this2.step();
++        var result = animate(merged, {
++          time: t
++        });
++        _this2.setState(result);
++        clearTimeout(_this2.timers.animate);
++        _this2.timers.animate = setTimeout(function () {
++          return _this2.step();
++        }, 20);
+       }, 3000);
+     }
+   }, {

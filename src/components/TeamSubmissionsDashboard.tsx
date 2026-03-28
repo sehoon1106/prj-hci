@@ -11,6 +11,7 @@ export interface StudySubmissionRow {
   submitted_at: string
   user_agent: string | null
   schema_version: number
+  demographics?: Record<string, unknown>
   pre_survey: Record<string, unknown>
   attention2: Record<string, unknown>
   post_survey: Record<string, unknown>
@@ -89,10 +90,9 @@ export function TeamSubmissionsDashboard() {
             <p className="eyebrow">Researcher</p>
             <h1>Study submissions</h1>
             <p className="muted small">
-              이 목록은 로그인 없이 열람합니다. 배포 사이트의 anon 키로 읽으므로,{' '}
-              <strong className="admin-warn-strong">URL을 아는 사람은 누구나</strong> 이 데이터에 접근할 수
-              있습니다. 민감한 응답이면 Supabase에서 anon SELECT 정책을 제거하고 Auth 기반으로 다시
-              보호하는 편이 안전합니다.
+              This list is readable without login. Because the anon key ships in the deployed site,{' '}
+              <strong className="admin-warn-strong">anyone with the URL</strong> can read these rows. If responses are
+              sensitive, remove anon SELECT in Supabase and protect the dashboard with Auth instead.
             </p>
           </div>
           <div className="admin-header-actions">

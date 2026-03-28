@@ -7,12 +7,20 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.3",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-pacman": "^0.0.4"
+  },
+  "overrides": {
+    "react-pacman": {
+      "react": "^19.2.4",
+      "react-dom": "^19.2.4"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -24,6 +32,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "patch-package": "^8.0.0",
+    "prop-types": "^15.8.1",
+    "sass": "^1.98.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
     "vite": "^8.0.1"

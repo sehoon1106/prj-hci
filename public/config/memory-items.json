@@ -4,74 +4,86 @@
     {
       "slideId": "slide-01",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+1",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-01)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-01)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-02",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+2",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-02)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-02)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-03",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+3",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-03)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-03)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-04",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+4",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-04)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-04)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-05",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+5",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-05)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-05)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-06",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+6",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-06)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-06)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-07",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+7",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-07)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-07)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-08",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+8",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-08)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-08)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-09",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+9",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-09)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-09)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-10",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+10",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-10)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-10)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-11",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+11",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-11)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-11)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-12",
       "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+12",
-      "prompt": "Do you remember the following detail from the original photograph? (example slide-12)",
-      "analysisNote": "Edit prompts and expected answers (agree/disagree) in config for your stimuli."
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     }
   ]
 }

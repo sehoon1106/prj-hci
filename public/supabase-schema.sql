@@ -9,6 +9,7 @@ create table if not exists public.study_submissions (
   submitted_at timestamptz not null,
   user_agent text,
   schema_version int not null default 1,
+  demographics jsonb not null default '{}',
   pre_survey jsonb not null default '{}',
   attention2 jsonb not null default '{}',
   post_survey jsonb not null default '{}',
@@ -42,3 +43,7 @@ create policy "anon_select_study_submissions"
 --   for select
 --   to authenticated
 --   using (true);
+
+-- Already have study_submissions? Add the column once:
+-- alter table public.study_submissions
+--   add column if not exists demographics jsonb not null default '{}';

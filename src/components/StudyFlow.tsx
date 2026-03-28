@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
-import type { MemoryResponse } from '../types/study'
+import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
 
 function SlideCoverageProgress({
   seenCount,
@@ -25,6 +25,37 @@ function SlideCoverageProgress({
         aria-valuemax={100}
       >
         <div className="media-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+/** Elapsed time in this step; bar reaches full at durationSec, then the app auto-advances. */
+function PhaseTimeProgress({
+  elapsed,
+  durationSec,
+}: {
+  elapsed: number
+  durationSec: number
+}) {
+  const pct =
+    durationSec > 0 ? Math.min(100, Math.round((elapsed / durationSec) * 100)) : 0
+  return (
+    <div className="media-progress phase-time-progress">
+      <p className="media-progress-label">
+        Time on this step: {elapsed}s / {durationSec}s — next step starts when the bar is full ({pct}%)
+      </p>
+      <div
+        className="media-progress-track"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className="media-progress-fill media-progress-fill--time"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   )
@@ -74,9 +105,13 @@ export function StudyFlow() {
     bundle,
     phase,
     setPhase,
+    sessionId,
     condition,
+    setCondition,
     consentAccepted,
     setConsentAccepted,
+    demographicsAnswers,
+    setDemographicsAnswers,
     preAnswers,
     setPreAnswers,
     attention2Answers,
@@ -88,6 +123,7 @@ export function StudyFlow() {
     setFillerStats,
     logEvent,
     submitStatus,
+    submitMethod,
     finalizeStudy,
   } = useStudySession()
 
@@ -102,8 +138,63 @@ export function StudyFlow() {
           <h1>{meta.title}</h1>
           <p className="muted">{meta.shortDescription}</p>
         </header>
+        <div className="intro-no-refresh" role="alert">
+          <p className="intro-no-refresh-title">Do not refresh this page</p>
+          <p className="intro-no-refresh-body">
+            <strong>Do not refresh, reload, or close this tab</strong> while you are in the study. Doing so can lose
+            your answers and you may need to start over.
+          </p>
+        </div>
+        {meta.procedureSteps && meta.procedureSteps.length > 0 ? (
+          <section className="intro-procedure" aria-labelledby="intro-procedure-heading">
+            <h2 id="intro-procedure-heading" className="intro-procedure-heading">
+              What you will do
+            </h2>
+            <ul className="procedure-steps">
+              {meta.procedureSteps.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <p className="consent">{meta.consentText}</p>
-        {meta.showConditionKeyToParticipant ? (
+        <fieldset
+          className="intro-condition-fieldset"
+          aria-label="Choose Option A or Option B as you were instructed"
+        >
+          <legend className="visually-hidden">Option A or Option B</legend>
+          <div className="intro-condition-options">
+            <label
+              className={`intro-condition-option ${condition === 'no_edit' ? 'intro-condition-option--active' : ''}`}
+            >
+              <input
+                type="radio"
+                name="assigned_study_option"
+                checked={condition === 'no_edit'}
+                onChange={() => {
+                  setCondition('no_edit')
+                  logEvent('participant_condition_pick', { optionLetter: 'A', conditionKey: 'no_edit' })
+                }}
+              />
+              <span>Option A</span>
+            </label>
+            <label
+              className={`intro-condition-option ${condition === 'ai_edited_image' ? 'intro-condition-option--active' : ''}`}
+            >
+              <input
+                type="radio"
+                name="assigned_study_option"
+                checked={condition === 'ai_edited_image'}
+                onChange={() => {
+                  setCondition('ai_edited_image')
+                  logEvent('participant_condition_pick', { optionLetter: 'B', conditionKey: 'ai_edited_image' })
+                }}
+              />
+              <span>Option B</span>
+            </label>
+          </div>
+        </fieldset>
+        {meta.showConditionKeyToParticipant && condition ? (
           <p className="muted small">
             Assigned condition (debug): {bundle.study.conditionLabels[condition]}
           </p>
@@ -120,10 +211,17 @@ export function StudyFlow() {
           <button
             type="button"
             className="btn primary"
-            disabled={!consentAccepted}
+            disabled={!consentAccepted || condition === null}
             onClick={() => {
-              logEvent('phase_enter', { phase: 'pre_survey' })
-              setPhase('pre_survey')
+              if (condition === null) return
+              logEvent('session_start', {
+                sessionId,
+                condition,
+                conditionLabel: bundle.study.conditionLabels[condition],
+                userAgent: navigator.userAgent,
+              })
+              logEvent('phase_enter', { phase: 'demographics' })
+              setPhase('demographics')
             }}
           >
             Begin
@@ -136,14 +234,42 @@ export function StudyFlow() {
             onClick={() => {
               logEvent('intro_debug_skip', {})
               setConsentAccepted(true)
-              logEvent('phase_enter', { phase: 'pre_survey' })
-              setPhase('pre_survey')
+              setCondition('no_edit')
+              logEvent('session_start', {
+                sessionId,
+                condition: 'no_edit',
+                conditionLabel: bundle.study.conditionLabels.no_edit,
+                userAgent: navigator.userAgent,
+                debugSkip: true,
+              })
+              logEvent('phase_enter', { phase: 'demographics' })
+              setPhase('demographics')
             }}
           >
             [Debug] Skip intro (auto-check consent, skip Begin)
           </button>
         </div>
       </div>
+    )
+  }
+
+  if (phase === 'demographics') {
+    return (
+      <SurveyRunner
+        config={bundle.demographics}
+        answers={demographicsAnswers}
+        onChange={setDemographicsAnswers}
+        logSurveyId="demographics"
+        onLog={logEvent}
+        onComplete={() => {
+          logEvent('phase_enter', { phase: 'pre_survey' })
+          setPhase('pre_survey')
+        }}
+        onDebugSkipEntireSurvey={() => {
+          logEvent('phase_enter', { phase: 'pre_survey' })
+          setPhase('pre_survey')
+        }}
+      />
     )
   }
 
@@ -221,7 +347,7 @@ export function StudyFlow() {
           <FillerPacMan
             durationSeconds={bundle.filler.minDurationSeconds}
             onStats={(s) => {
-              setFillerStats(s)
+              setFillerStats(s as unknown as Record<string, unknown>)
               logEvent('filler_complete', s as unknown as Record<string, unknown>)
             }}
             onDone={() => {
@@ -265,12 +391,25 @@ export function StudyFlow() {
   }
 
   if (phase === 'condition') {
+    const conditionKey = condition
+    if (!conditionKey) {
+      return (
+        <div className="card error-card">
+          <p>No Option A/B was recorded. Please return to the start and select the option your researcher assigned.</p>
+          <div className="btn-row">
+            <button type="button" className="btn primary" onClick={() => setPhase('intro')}>
+              Back to start
+            </button>
+          </div>
+        </div>
+      )
+    }
     return (
       <ConditionPhase
         title={meta.conditionPhaseTitle}
         instructions={meta.conditionPhaseInstructions}
         slides={slides}
-        condition={condition}
+        condition={conditionKey}
         durationSec={meta.conditionDurationSeconds}
         onComplete={() => {
           logEvent('phase_enter', { phase: 'memory' })
@@ -322,6 +461,7 @@ export function StudyFlow() {
     return (
       <CompleteScreen
         submitStatus={submitStatus}
+        submitMethod={submitMethod}
         finalizeStudy={finalizeStudy}
         logEvent={logEvent}
       />
@@ -346,6 +486,7 @@ function BaselinePhase({
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
+  const [viewingStarted, setViewingStarted] = useState(false)
   const [idx, setIdx] = useState(0)
   const [maxIdx, setMaxIdx] = useState(0)
   const [elapsed, setElapsed] = useState(0)
@@ -355,23 +496,25 @@ function BaselinePhase({
   const autoAdvancedRef = useRef(false)
 
   useEffect(() => {
+    if (!viewingStarted) return
     setSeenIndices((prev) => {
       if (prev.has(idx)) return prev
       const next = new Set(prev)
       next.add(idx)
       return next
     })
-  }, [idx])
+  }, [idx, viewingStarted])
 
   useEffect(() => {
+    if (!viewingStarted) return
     const id = window.setInterval(() => {
       setElapsed((e) => e + 1)
     }, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [viewingStarted])
 
   useEffect(() => {
-    if (autoAdvancedRef.current || elapsed < durationSec) return
+    if (!viewingStarted || autoAdvancedRef.current || elapsed < durationSec) return
     autoAdvancedRef.current = true
     logEvent('baseline_complete', {
       elapsed,
@@ -379,7 +522,7 @@ function BaselinePhase({
       autoAdvanceAfterMinDuration: true,
     })
     onComplete()
-  }, [elapsed, durationSec, maxIdx, logEvent, onComplete])
+  }, [viewingStarted, elapsed, durationSec, maxIdx, logEvent, onComplete])
 
   useEffect(() => {
     for (const slide of slides) {
@@ -389,13 +532,14 @@ function BaselinePhase({
   }, [slides])
 
   useEffect(() => {
+    if (!viewingStarted) return
     setMaxIdx((m) => Math.max(m, idx))
     const prev = prevIdxRef.current
     prevIdxRef.current = idx
     if (prev !== null && prev !== idx) {
       logEvent('baseline_slide', { slideId: slides[idx].id, index: idx })
     }
-  }, [idx, slides, logEvent])
+  }, [idx, slides, logEvent, viewingStarted])
 
   const go = (dir: 1 | -1) => {
     setIdx((i) => (i + dir + slides.length) % slides.length)
@@ -417,17 +561,77 @@ function BaselinePhase({
 
   const s = slides[idx]
 
+  if (!viewingStarted) {
+    return (
+      <div className="card media-card">
+        <header className="card-header">
+          <h2>{title}</h2>
+          <p className="muted">{instructions}</p>
+        </header>
+        <div className="media-reminder" role="status">
+          <p className="media-reminder-lead">
+            <strong>Before you start:</strong> You have <strong>{durationSec} seconds</strong> (about one minute) to view{' '}
+            <strong>all {slides.length} images</strong>. Try to see each one at least once. When the timer reaches{' '}
+            <strong>{durationSec}s</strong>, this step <strong>ends automatically</strong> and the study moves on—you
+            cannot extend or pause this block.
+          </p>
+        </div>
+        <div className="btn-row" style={{ justifyContent: 'center' }}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              logEvent('baseline_viewing_prepare_ack', {
+                slideCount: slides.length,
+                durationSec,
+              })
+              setViewingStarted(true)
+            }}
+          >
+            Start viewing images
+          </button>
+        </div>
+        <div className="debug-skip-bar">
+          <button
+            type="button"
+            className="btn debug-skip"
+            onClick={() => {
+              if (autoAdvancedRef.current) return
+              autoAdvancedRef.current = true
+              logEvent('baseline_debug_skip', {
+                elapsed,
+                idx,
+                maxIdx,
+                durationSec,
+                slideCount: slides.length,
+                beforeViewingStart: true,
+              })
+              logEvent('baseline_complete', { elapsed, maxIdx, debugSkip: true })
+              onComplete()
+            }}
+          >
+            [Debug] Skip baseline (ignore timer)
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="card media-card">
       <header className="card-header">
         <h2>{title}</h2>
         <p className="muted">{instructions}</p>
-        <p className="timer">
-          Elapsed {elapsed}s / minimum {durationSec}s · slide {idx + 1} / {slides.length}
+        <p className="media-reminder-inline muted small">
+          <strong>Note:</strong> Try to view all {slides.length} images before the timer ends.
         </p>
+        <p className="timer">
+          Elapsed {elapsed}s / {durationSec}s · slide {idx + 1} / {slides.length}
+        </p>
+        <PhaseTimeProgress elapsed={elapsed} durationSec={durationSec} />
         <SlideCoverageProgress seenCount={seenIndices.size} total={slides.length} />
         <p className="muted small">
-          When the minimum time is reached, the study will continue automatically.
+          When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
       <div className="debug-skip-bar">
@@ -448,7 +652,7 @@ function BaselinePhase({
             onComplete()
           }}
         >
-          [Debug] Skip baseline (ignore minimum time and last-slide requirement)
+          [Debug] Skip baseline (ignore timer)
         </button>
       </div>
       <div
@@ -503,6 +707,7 @@ function ConditionPhase({
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
+  const [viewingStarted, setViewingStarted] = useState(false)
   const [idx, setIdx] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([0]))
@@ -513,23 +718,25 @@ function ConditionPhase({
   }, [condition])
 
   useEffect(() => {
+    if (!viewingStarted) return
     setSeenIndices((prev) => {
       if (prev.has(idx)) return prev
       const next = new Set(prev)
       next.add(idx)
       return next
     })
-  }, [idx])
+  }, [idx, viewingStarted])
 
   useEffect(() => {
+    if (!viewingStarted) return
     const id = window.setInterval(() => {
       setElapsed((e) => e + 1)
     }, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [viewingStarted])
 
   useEffect(() => {
-    if (autoAdvancedRef.current || elapsed < durationSec) return
+    if (!viewingStarted || autoAdvancedRef.current || elapsed < durationSec) return
     autoAdvancedRef.current = true
     logEvent('condition_complete', {
       condition,
@@ -537,13 +744,14 @@ function ConditionPhase({
       autoAdvanceAfterMinDuration: true,
     })
     onComplete()
-  }, [elapsed, durationSec, condition, logEvent, onComplete])
+  }, [viewingStarted, elapsed, durationSec, condition, logEvent, onComplete])
 
   const go = (dir: 1 | -1) => {
-    setIdx((i) => Math.min(slides.length - 1, Math.max(0, i + dir)))
+    setIdx((i) => (i + dir + slides.length) % slides.length)
   }
 
   useEffect(() => {
+    if (!viewingStarted) return
     const slide = slides[idx]
     logEvent('condition_slide', {
       slideId: slide.id,
@@ -552,11 +760,66 @@ function ConditionPhase({
       media: slide.conditionMediaType[condition],
       src: slide.conditionSrc[condition],
     })
-  }, [idx, slides, condition, logEvent])
+  }, [idx, slides, condition, logEvent, viewingStarted])
 
   const slide = slides[idx]
   const src = slide.conditionSrc[condition]
   const media = slide.conditionMediaType[condition]
+
+  if (!viewingStarted) {
+    return (
+      <div className="card media-card">
+        <header className="card-header">
+          <p className="eyebrow ai-label">{title}</p>
+          <h2>Stimulus set</h2>
+          <p className="muted">{instructions}</p>
+        </header>
+        <div className="media-reminder" role="status">
+          <p className="media-reminder-lead">
+            <strong>Before you start:</strong> You have <strong>{durationSec} seconds</strong> (about one minute) to view{' '}
+            <strong>all {slides.length} images</strong>. Try to see each one at least once. When the timer reaches{' '}
+            <strong>{durationSec}s</strong>, this step <strong>ends automatically</strong> and the study moves on—you
+            cannot extend or pause this block.
+          </p>
+        </div>
+        <div className="btn-row" style={{ justifyContent: 'center' }}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              logEvent('condition_viewing_prepare_ack', {
+                slideCount: slides.length,
+                durationSec,
+                condition,
+              })
+              setViewingStarted(true)
+            }}
+          >
+            Start viewing images
+          </button>
+        </div>
+        <div className="debug-skip-bar">
+          <button
+            type="button"
+            className="btn debug-skip"
+            onClick={() => {
+              if (!autoAdvancedRef.current) autoAdvancedRef.current = true
+              logEvent('condition_debug_skip', {
+                idx,
+                condition,
+                elapsed,
+                beforeViewingStart: true,
+              })
+              logEvent('condition_complete', { condition, debugSkip: true })
+              onComplete()
+            }}
+          >
+            [Debug] Skip stimulus set (ignore timer)
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="card media-card">
@@ -564,12 +827,16 @@ function ConditionPhase({
         <p className="eyebrow ai-label">{title}</p>
         <h2>Stimulus set</h2>
         <p className="muted">{instructions}</p>
-        <p className="timer">
-          Elapsed {elapsed}s / minimum {durationSec}s · slide {idx + 1} / {slides.length}
+        <p className="media-reminder-inline muted small">
+          <strong>Note:</strong> Try to view all {slides.length} images before the timer ends.
         </p>
+        <p className="timer">
+          Elapsed {elapsed}s / {durationSec}s · slide {idx + 1} / {slides.length}
+        </p>
+        <PhaseTimeProgress elapsed={elapsed} durationSec={durationSec} />
         <SlideCoverageProgress seenCount={seenIndices.size} total={slides.length} />
         <p className="muted small">
-          When the minimum time is reached, the study will continue automatically.
+          When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
       <div className="debug-skip-bar">
@@ -612,20 +879,10 @@ function ConditionPhase({
         )}
       </div>
       <div className="btn-row spread">
-        <button
-          type="button"
-          className="btn secondary"
-          disabled={idx <= 0}
-          onClick={() => go(-1)}
-        >
+        <button type="button" className="btn secondary" onClick={() => go(-1)}>
           ← Previous
         </button>
-        <button
-          type="button"
-          className="btn secondary"
-          disabled={idx >= slides.length - 1}
-          onClick={() => go(1)}
-        >
+        <button type="button" className="btn secondary" onClick={() => go(1)}>
           Next →
         </button>
       </div>
@@ -669,12 +926,16 @@ function MemoryPhase({
 
   const saveAndNext = () => {
     if (!recall || confidence === null) return
+    const expected = item.expectedAnswer
+    const isCorrect = memoryTrialCorrectness(recall, expected)
     const next = [...responses]
     next[step] = {
       itemIndex: step,
       slideId: item.slideId,
       recall,
       confidence,
+      ...(expected !== undefined ? { expectedAnswer: expected } : {}),
+      isCorrect,
     }
     onChange(next)
     logEvent('memory_answer', {
@@ -682,6 +943,8 @@ function MemoryPhase({
       slideId: item.slideId,
       recall,
       confidence,
+      expectedAnswer: expected,
+      isCorrect,
     })
     if (step + 1 >= items.length) onComplete()
     else setStep((s) => s + 1)
@@ -701,12 +964,18 @@ function MemoryPhase({
           type="button"
           className="btn debug-skip"
           onClick={() => {
-            const stub = items.map((it, i) => ({
-              itemIndex: i,
-              slideId: it.slideId,
-              recall: 'unsure' as const,
-              confidence: 4,
-            }))
+            const stub = items.map((it, i) => {
+              const expected = it.expectedAnswer
+              const recall = 'unsure' as const
+              return {
+                itemIndex: i,
+                slideId: it.slideId,
+                recall,
+                confidence: 4,
+                ...(expected !== undefined ? { expectedAnswer: expected } : {}),
+                isCorrect: memoryTrialCorrectness(recall, expected),
+              }
+            })
             onChange(stub)
             logEvent('memory_phase_debug_skip', {
               itemCount: items.length,
@@ -715,7 +984,7 @@ function MemoryPhase({
             onComplete()
           }}
         >
-          [Debug] Skip entire memory test (fill all as Not sure / confidence 4)
+          [Debug] Skip follow-up block (fill all as Not sure / confidence 4)
         </button>
       </div>
       <img
@@ -781,10 +1050,12 @@ function MemoryPhase({
 
 function CompleteScreen({
   submitStatus,
+  submitMethod,
   finalizeStudy,
   logEvent,
 }: {
   submitStatus: string | null
+  submitMethod: 'supabase' | 'download' | null
   finalizeStudy: () => Promise<void>
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
@@ -810,11 +1081,28 @@ function CompleteScreen({
       <header className="card-header">
         <h2>Thank you for participating</h2>
         <p className="muted">
-          Your responses have been saved. You may close the browser when you are done.
+          <strong>Please stay on this page</strong> until saving finishes and a status line appears below.
+        </p>
+        <p className="muted">
+          When you see <strong>Saved to the server (Supabase)</strong>, your session is complete and you may close the
+          browser.
+        </p>
+        <p className="muted">
+          If <strong>a JSON file downloads</strong> instead of a Supabase confirmation, something went wrong with the
+          online save—please send that file to the <strong>researcher who recruited you</strong> so your data are not
+          lost.
         </p>
       </header>
-      {busy && !submitStatus ? <p>Saving…</p> : null}
+      {busy && !submitStatus ? (
+        <p className="complete-saving">Uploading your responses… please wait.</p>
+      ) : null}
       {submitStatus ? <p className="status-msg">{submitStatus}</p> : null}
+      {submitMethod === 'download' ? (
+        <p className="muted small complete-download-note">
+          A JSON backup was saved in your browser downloads folder. Please email or otherwise share that file with your
+          researcher unless they tell you otherwise.
+        </p>
+      ) : null}
       <div className="debug-skip-bar">
         <button
           type="button"

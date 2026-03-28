@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -19,20 +18,17 @@ import type {
 } from '../types/study'
 import { submitResults, type SubmissionPayload } from '../services/submitResults'
 
-function pickCondition(keys: ConditionKey[], randomize: boolean): ConditionKey {
-  if (!randomize) return keys[0]
-  const i = Math.floor(Math.random() * keys.length)
-  return keys[i]
-}
-
 interface StudySessionValue {
   bundle: StudyBundle
   phase: StudyPhase
   setPhase: (p: StudyPhase) => void
   sessionId: string
-  condition: ConditionKey
+  condition: ConditionKey | null
+  setCondition: (c: ConditionKey) => void
   consentAccepted: boolean
   setConsentAccepted: (v: boolean) => void
+  demographicsAnswers: Record<string, string | number>
+  setDemographicsAnswers: (r: Record<string, string | number>) => void
   preAnswers: Record<string, string | number>
   setPreAnswers: (r: Record<string, string | number>) => void
   attention2Answers: Record<string, string | number>
@@ -46,6 +42,7 @@ interface StudySessionValue {
   logEvent: (type: string, payload?: Record<string, unknown>) => void
   eventLog: LogEvent[]
   submitStatus: string | null
+  submitMethod: 'supabase' | 'download' | null
   finalizeStudy: () => Promise<void>
 }
 
@@ -66,12 +63,10 @@ export function StudySessionProvider({
 
   const [phase, setPhase] = useState<StudyPhase>('intro')
   const [consentAccepted, setConsentAccepted] = useState(false)
-  const [condition] = useState<ConditionKey>(() =>
-    pickCondition(
-      bundle.study.conditionKeys,
-      bundle.study.randomizeCondition,
-    ),
-  )
+  const [demographicsAnswers, setDemographicsAnswers] = useState<
+    Record<string, string | number>
+  >({})
+  const [condition, setCondition] = useState<ConditionKey | null>(null)
   const [preAnswers, setPreAnswers] = useState<
     Record<string, string | number>
   >({})
@@ -86,7 +81,7 @@ export function StudySessionProvider({
   const [eventLog, setEventLog] = useState<LogEvent[]>([])
   const eventLogRef = useRef<LogEvent[]>([])
   const [submitStatus, setSubmitStatus] = useState<string | null>(null)
-  const sessionStartLoggedRef = useRef(false)
+  const [submitMethod, setSubmitMethod] = useState<'supabase' | 'download' | null>(null)
   const submittedThisRunRef = useRef(false)
 
   const logEvent = useCallback((type: string, payload?: Record<string, unknown>) => {
@@ -102,20 +97,17 @@ export function StudySessionProvider({
     })
   }, [])
 
-  useEffect(() => {
-    if (sessionStartLoggedRef.current) return
-    sessionStartLoggedRef.current = true
-    logEvent('session_start', {
-      sessionId,
-      condition,
-      userAgent: navigator.userAgent,
-    })
-  }, [sessionId, condition, logEvent])
-
   const finalizeStudy = useCallback(async () => {
     if (submittedThisRunRef.current) {
       setSubmitStatus(
         (prev) => prev ?? 'This run has already been submitted. Reload the page to start a new session.',
+      )
+      return
+    }
+    if (condition === null) {
+      setSubmitMethod(null)
+      setSubmitStatus(
+        'Could not submit: no study option (A/B) was selected. Please reload the page and start again.',
       )
       return
     }
@@ -128,6 +120,7 @@ export function StudySessionProvider({
           conditionKey: condition,
           submittedAt: new Date().toISOString(),
           userAgent: navigator.userAgent,
+          demographics: demographicsAnswers,
           preSurvey: preAnswers,
           attention2: attention2Answers,
           postSurvey: postAnswers,
@@ -138,8 +131,10 @@ export function StudySessionProvider({
         const r = await submitResults(payload)
         submittedThisRunRef.current = true
         if (r.method === 'supabase') {
+          setSubmitMethod('supabase')
           setSubmitStatus('Saved to the server (Supabase).')
         } else {
+          setSubmitMethod('download')
           setSubmitStatus(
             r.error ??
               'Saved as a JSON file in your browser. Configure Supabase to also upload to a server.',
@@ -152,6 +147,7 @@ export function StudySessionProvider({
   }, [
     sessionId,
     condition,
+    demographicsAnswers,
     preAnswers,
     attention2Answers,
     postAnswers,
@@ -166,8 +162,11 @@ export function StudySessionProvider({
       setPhase,
       sessionId,
       condition,
+      setCondition,
       consentAccepted,
       setConsentAccepted,
+      demographicsAnswers,
+      setDemographicsAnswers,
       preAnswers,
       setPreAnswers,
       attention2Answers,
@@ -181,6 +180,7 @@ export function StudySessionProvider({
       logEvent,
       eventLog,
       submitStatus,
+      submitMethod,
       finalizeStudy,
     }),
     [
@@ -188,7 +188,9 @@ export function StudySessionProvider({
       phase,
       sessionId,
       condition,
+      setCondition,
       consentAccepted,
+      demographicsAnswers,
       preAnswers,
       attention2Answers,
       postAnswers,
@@ -197,6 +199,7 @@ export function StudySessionProvider({
       logEvent,
       eventLog,
       submitStatus,
+      submitMethod,
       finalizeStudy,
     ],
   )
