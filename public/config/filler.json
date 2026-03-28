@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "type": "pacman",
-  "durationSeconds": 120,
+  "durationSeconds": 60,
   "title": "Short break: Pac-Man",
-  "instructions": "As in the paper procedure, please play a simple Pac-Man–style game for about 2 minutes. Use the arrow keys (or on-screen buttons) to move, eat dots, and play until the timer ends. When time is up you can continue to the next step.",
-  "minDurationSeconds": 120
+  "instructions": "As in the paper procedure, please play a simple Pac-Man–style game for about 1 minute. Use the arrow keys (or on-screen buttons) to move, eat dots, and play until the timer ends. When time is up you can continue to the next step.",
+  "minDurationSeconds": 60
 }

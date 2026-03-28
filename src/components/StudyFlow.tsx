@@ -4,6 +4,32 @@ import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
 import type { MemoryResponse } from '../types/study'
 
+function SlideCoverageProgress({
+  seenCount,
+  total,
+}: {
+  seenCount: number
+  total: number
+}) {
+  const pct = total > 0 ? Math.round((seenCount / total) * 100) : 0
+  return (
+    <div className="media-progress">
+      <p className="media-progress-label">
+        Images seen at least once: {seenCount} / {total} ({pct}%)
+      </p>
+      <div
+        className="media-progress-track"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className="media-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function CountdownFiller({
   seconds,
   onDone,
@@ -245,6 +271,7 @@ export function StudyFlow() {
         instructions={meta.conditionPhaseInstructions}
         slides={slides}
         condition={condition}
+        durationSec={meta.conditionDurationSeconds}
         onComplete={() => {
           logEvent('phase_enter', { phase: 'memory' })
           setPhase('memory')
@@ -322,9 +349,19 @@ function BaselinePhase({
   const [idx, setIdx] = useState(0)
   const [maxIdx, setMaxIdx] = useState(0)
   const [elapsed, setElapsed] = useState(0)
+  const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([0]))
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const prevIdxRef = useRef<number | null>(null)
   const autoAdvancedRef = useRef(false)
+
+  useEffect(() => {
+    setSeenIndices((prev) => {
+      if (prev.has(idx)) return prev
+      const next = new Set(prev)
+      next.add(idx)
+      return next
+    })
+  }, [idx])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -388,6 +425,7 @@ function BaselinePhase({
         <p className="timer">
           Elapsed {elapsed}s / minimum {durationSec}s · slide {idx + 1} / {slides.length}
         </p>
+        <SlideCoverageProgress seenCount={seenIndices.size} total={slides.length} />
         <p className="muted small">
           When the minimum time is reached, the study will continue automatically.
         </p>
@@ -453,6 +491,7 @@ function ConditionPhase({
   instructions,
   slides,
   condition,
+  durationSec,
   onComplete,
   logEvent,
 }: {
@@ -460,14 +499,45 @@ function ConditionPhase({
   instructions: string
   slides: import('../types/study').SlideDef[]
   condition: import('../types/study').ConditionKey
+  durationSec: number
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
   const [idx, setIdx] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
+  const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([0]))
+  const autoAdvancedRef = useRef(false)
 
   useEffect(() => {
     setIdx(0)
   }, [condition])
+
+  useEffect(() => {
+    setSeenIndices((prev) => {
+      if (prev.has(idx)) return prev
+      const next = new Set(prev)
+      next.add(idx)
+      return next
+    })
+  }, [idx])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setElapsed((e) => e + 1)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    if (autoAdvancedRef.current || elapsed < durationSec) return
+    autoAdvancedRef.current = true
+    logEvent('condition_complete', {
+      condition,
+      elapsed,
+      autoAdvanceAfterMinDuration: true,
+    })
+    onComplete()
+  }, [elapsed, durationSec, condition, logEvent, onComplete])
 
   const go = (dir: 1 | -1) => {
     setIdx((i) => Math.min(slides.length - 1, Math.max(0, i + dir)))
@@ -494,8 +564,12 @@ function ConditionPhase({
         <p className="eyebrow ai-label">{title}</p>
         <h2>Stimulus set</h2>
         <p className="muted">{instructions}</p>
-        <p className="small muted">
-          {idx + 1} / {slides.length}
+        <p className="timer">
+          Elapsed {elapsed}s / minimum {durationSec}s · slide {idx + 1} / {slides.length}
+        </p>
+        <SlideCoverageProgress seenCount={seenIndices.size} total={slides.length} />
+        <p className="muted small">
+          When the minimum time is reached, the study will continue automatically.
         </p>
       </header>
       <div className="debug-skip-bar">
@@ -503,12 +577,13 @@ function ConditionPhase({
           type="button"
           className="btn debug-skip"
           onClick={() => {
-            logEvent('condition_debug_skip', { idx, condition })
+            if (!autoAdvancedRef.current) autoAdvancedRef.current = true
+            logEvent('condition_debug_skip', { idx, condition, elapsed })
             logEvent('condition_complete', { condition, debugSkip: true })
             onComplete()
           }}
         >
-          [Debug] Skip stimulus set (ignore last-slide requirement)
+          [Debug] Skip stimulus set (ignore timer)
         </button>
       </div>
       <div className="swipe-stage">
@@ -552,19 +627,6 @@ function ConditionPhase({
           onClick={() => go(1)}
         >
           Next →
-        </button>
-      </div>
-      <div className="btn-row">
-        <button
-          type="button"
-          className="btn primary"
-          disabled={idx < slides.length - 1}
-          onClick={() => {
-            logEvent('condition_complete', { condition })
-            onComplete()
-          }}
-        >
-          I have viewed all items
         </button>
       </div>
     </div>

@@ -117,6 +117,8 @@ export interface StudyMeta {
   conditionKeys: ConditionKey[]
   conditionLabels: Record<ConditionKey, string>
   baselineDurationSeconds: number
+  /** Minimum seconds on the second (condition) image set before auto-advance */
+  conditionDurationSeconds: number
   showConditionKeyToParticipant: boolean
 }
 

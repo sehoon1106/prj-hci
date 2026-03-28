@@ -25,11 +25,11 @@ npm run preview # preview dist
 
 1. Consent and introduction  
 2. **Pre-survey** + first attention check (`pre-survey.json`)  
-3. **Original images** (24) — swipe or buttons; when **minimum time (default 120s)** elapses, the app **advances automatically** (no manual continue button)  
-4. **Filler** — default ~2 min Pac-Man (`filler.json`, `type: "pacman"`)  
+3. **Original images** (12) — swipe or buttons; when **minimum time (default 60s)** elapses, the app **advances automatically** (no manual continue button)  
+4. **Filler** — default ~1 min Pac-Man (`filler.json`, `type: "pacman"`)  
 5. **Second attention check** (`attention-2.json`)  
-6. **Condition-specific second stimulus** — previous/next only (no return to baseline); copy and labels from `study.json`  
-7. **Memory test** (24 items) — Agree / Disagree / Not sure + confidence 1–7 (`memory-items.json`)  
+6. **Condition-specific second stimulus** — previous/next only (no return to baseline); after **minimum time** (`conditionDurationSeconds` in `study.json`, default 60s) the app advances automatically; copy and labels from `study.json`  
+7. **Memory test** (12 items) — Agree / Disagree / Not sure + confidence 1–7 (`memory-items.json`)  
 8. **Post-survey** (`post-survey.json`)  
 9. On completion — **submit** (Supabase or JSON download)
 
@@ -44,7 +44,7 @@ Participants are **randomly assigned** to one of two conditions at session start
 | `attention-2.json` | Attention check after filler |
 | `post-survey.json` | Demographics and post scales |
 | `filler.json` | Filler title, copy, minimum duration (seconds). If `type` is not `"pacman"`, a **simple countdown** filler is used |
-| `slides.json` | 24 slides: baseline URL, per-condition URLs, per-condition media type (`image` / `video`) |
+| `slides.json` | Slides (default 12): baseline URL, per-condition URLs, per-condition media type (`image` / `video`) |
 | `memory-items.json` | Per-item `slideId`, masked image URL, question text |
 
 Default images use [placehold.co](https://placehold.co) URLs. Replace URLs and copy in the JSON for your own stimuli.
