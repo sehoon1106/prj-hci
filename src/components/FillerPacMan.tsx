@@ -264,23 +264,23 @@ export function FillerPacMan({
           </span>
         ) : null}
       </p>
-      <div className="media-progress phase-time-progress pac-filler-time">
-        <p className="media-progress-label">
-          {started
-            ? `Break time: ${breakElapsedSec}s / ${durationSeconds}s — when it reaches ${durationSeconds}s, the study moves on automatically (${breakTimePct}%)`
-            : `Break timer (${durationSeconds}s) — press Start game when ready; when time runs out, the study advances automatically`}
+      <div className="phase-time-progress pac-filler-time">
+        <p className="phase-time-label">
+          <span className="phase-time-heading">Break timer</span>
+          <span className="phase-time-numbers">
+            {started
+              ? `${breakElapsedSec}s / ${durationSeconds}s — auto-advances at ${durationSeconds}s (${breakTimePct}%)`
+              : `${durationSeconds}s total — press Start game when ready`}
+          </span>
         </p>
         <div
-          className="media-progress-track"
+          className="phase-time-track"
           role="progressbar"
           aria-valuenow={breakTimePct}
           aria-valuemin={0}
           aria-valuemax={100}
         >
-          <div
-            className="media-progress-fill media-progress-fill--time"
-            style={{ width: `${breakTimePct}%` }}
-          />
+          <div className="phase-time-fill" style={{ width: `${breakTimePct}%` }} />
         </div>
       </div>
 

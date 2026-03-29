@@ -9,10 +9,12 @@ import {
 } from 'react'
 
 const submitInflight = new Map<string, Promise<void>>()
+import { createPresentationOrders } from '../lib/presentationOrder'
 import type {
   ConditionKey,
   LogEvent,
   MemoryResponse,
+  PresentationOrders,
   StudyBundle,
   StudyPhase,
 } from '../types/study'
@@ -44,6 +46,8 @@ interface StudySessionValue {
   submitStatus: string | null
   submitMethod: 'supabase' | 'download' | null
   finalizeStudy: () => Promise<void>
+  /** Maps each phase’s presentation order to indices in `slides.json` / `memory-items.json`. */
+  presentationOrders: PresentationOrders
 }
 
 const Ctx = createContext<StudySessionValue | null>(null)
@@ -83,6 +87,8 @@ export function StudySessionProvider({
   const [submitStatus, setSubmitStatus] = useState<string | null>(null)
   const [submitMethod, setSubmitMethod] = useState<'supabase' | 'download' | null>(null)
   const submittedThisRunRef = useRef(false)
+
+  const [presentationOrders] = useState(() => createPresentationOrders(bundle))
 
   const logEvent = useCallback((type: string, payload?: Record<string, unknown>) => {
     const ev: LogEvent = {
@@ -182,6 +188,7 @@ export function StudySessionProvider({
       submitStatus,
       submitMethod,
       finalizeStudy,
+      presentationOrders,
     }),
     [
       bundle,
@@ -201,6 +208,7 @@ export function StudySessionProvider({
       submitStatus,
       submitMethod,
       finalizeStudy,
+      presentationOrders,
     ],
   )
 

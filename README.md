@@ -108,7 +108,8 @@ Each element:
 
 | Key | Meaning |
 |-----|--------|
-| `itemIndex` | 0-based index in `memory-items.json` order |
+| `itemIndex` | 0-based index in `memory-items.json` **array order** (stable; joins to the n-th item in the file) |
+| `presentationIndex` | 0-based position in the **randomized** memory block order that session |
 | `slideId` | Matches `slideId` in `memory-items.json` / `slides.json` (links to which image the question referred to) |
 | `recall` | `"agree"`, `"disagree"`, or `"unsure"` |
 | `confidence` | Integer 1–7 |
@@ -189,13 +190,13 @@ or for non–Pac-Man: `{ "type": "<your type>", "durationSeconds": 120, "debugSk
 
 | `type` | Typical `payload` | Use |
 |--------|-------------------|-----|
-| `session_start` | `sessionId`, `condition`, `userAgent` | Start of run; confirms assigned condition |
+| `session_start` | `sessionId`, `condition`, `userAgent`, `presentationOrders` | Start of run; **`presentationOrders`** maps each phase’s screen order → config indices for that session |
 | `phase_enter` | `phase` | e.g. `pre_survey`, `baseline`, `filler`, `condition`, `memory`, `complete` |
-| `baseline_slide` | `slideId`, `index` | Baseline navigation (first view of slide 0 is not logged until they change slide) |
+| `baseline_slide` | `slideId`, `presentationIndex`, `configSlideIndex` | Baseline navigation (**`configSlideIndex`** = row in `slides.json`; first slide may log only after navigating away) |
 | `baseline_complete` | `elapsed`, `maxIdx`, optional `autoAdvanceAfterMinDuration`, `debugSkip` | End of baseline |
-| `condition_slide` | `slideId`, `index`, `condition`, `media`, `src` | Second-stimulus set |
+| `condition_slide` | `slideId`, `presentationIndex`, `configSlideIndex`, `condition`, `media`, `src` | Second-stimulus set |
 | `condition_complete` | `condition`, optional `debugSkip` | Finished condition block |
-| `memory_answer` | `step`, `slideId`, `recall`, `confidence` | One memory item (mirror of `memoryResponses` with time) |
+| `memory_answer` | `step`, `presentationIndex`, `configItemIndex`, `slideId`, `recall`, `confidence` | One memory item (mirror of `memoryResponses`; **`configItemIndex`** matches `memory-items.json` order) |
 | `filler_complete` | Same shape as `filler_stats` (Pac-Man) or `{ type }` (countdown) | End of filler; **redundant** with `filler_stats` for summary stats |
 | `survey_page_done` | `surveyId`, `pageId` | Finished a survey page |
 | `survey_validation_fail` | `surveyId`, `pageId`, `message` | Failed validation (attention check, required field, etc.) |

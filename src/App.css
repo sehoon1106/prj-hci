@@ -225,6 +225,129 @@ body {
   margin-top: 0.5rem;
 }
 
+/* Timer bar: blocky “deadline” look (distinct from image-coverage dots below) */
+.phase-time-progress {
+  margin: 0.65rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(180, 83, 9, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.phase-time-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+}
+
+.phase-time-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.phase-time-numbers {
+  color: #e7dcc8;
+  line-height: 1.35;
+}
+
+.phase-time-track {
+  height: 12px;
+  border-radius: 4px;
+  background: #1c1308;
+  overflow: hidden;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.phase-time-fill {
+  height: 100%;
+  border-radius: 3px;
+  margin: 1px;
+  min-width: 0;
+  box-sizing: border-box;
+  background: repeating-linear-gradient(
+    -45deg,
+    #f59e0b,
+    #f59e0b 6px,
+    #d97706 6px,
+    #d97706 12px
+  );
+  background-size: 200% 100%;
+  transition: width 0.25s ease;
+}
+
+/* Image coverage: dot row (not a bar) */
+.slide-coverage-progress {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(79, 124, 255, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.slide-coverage-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.slide-coverage-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a5b4fc;
+}
+
+.slide-coverage-count {
+  color: #c8cfdf;
+  line-height: 1.35;
+}
+
+.slide-coverage-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.slide-coverage-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid #4f5f8a;
+  background: transparent;
+  flex-shrink: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.slide-coverage-dot--filled {
+  background: linear-gradient(145deg, #6366f1, #4f7cff);
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.35);
+}
+
+.slide-coverage-hint {
+  margin: 0.45rem 0 0;
+}
+
+.pac-filler-time {
+  width: 100%;
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Legacy survey / other uses */
 .media-progress {
   margin: 0.65rem 0 0;
 }
@@ -249,17 +372,6 @@ body {
   background: linear-gradient(90deg, #4f7cff, #7b5cff);
   transition: width 0.25s ease;
   min-width: 0;
-}
-
-.media-progress-fill--time {
-  background: linear-gradient(90deg, #0d9488, #38bdf8);
-}
-
-.pac-filler-time {
-  width: 100%;
-  max-width: 22rem;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .survey-form .survey-items {

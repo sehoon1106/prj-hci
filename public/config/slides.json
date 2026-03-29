@@ -3,10 +3,10 @@
   "slides": [
     {
       "id": "slide-01",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+1",
+      "baselineSrc": "/stimuli/baseline/object-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+1",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+1"
+        "no_edit": "/stimuli/baseline/object-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-1-edited.jpeg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -15,10 +15,10 @@
     },
     {
       "id": "slide-02",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+2",
+      "baselineSrc": "/stimuli/baseline/object-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+2",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+2"
+        "no_edit": "/stimuli/baseline/object-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-2-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -27,10 +27,10 @@
     },
     {
       "id": "slide-03",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+3",
+      "baselineSrc": "/stimuli/baseline/object-3-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+3",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+3"
+        "no_edit": "/stimuli/baseline/object-3-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-3-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -39,10 +39,10 @@
     },
     {
       "id": "slide-04",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+4",
+      "baselineSrc": "/stimuli/baseline/object-4-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+4",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+4"
+        "no_edit": "/stimuli/baseline/object-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-4-edited.jpeg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -51,10 +51,10 @@
     },
     {
       "id": "slide-05",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+5",
+      "baselineSrc": "/stimuli/baseline/object-5-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+5",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+5"
+        "no_edit": "/stimuli/baseline/object-5-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-5-edited.jpeg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -63,10 +63,10 @@
     },
     {
       "id": "slide-06",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+6",
+      "baselineSrc": "/stimuli/baseline/people-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+6",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+6"
+        "no_edit": "/stimuli/baseline/people-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-1-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -75,10 +75,10 @@
     },
     {
       "id": "slide-07",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+7",
+      "baselineSrc": "/stimuli/baseline/people-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+7",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+7"
+        "no_edit": "/stimuli/baseline/people-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-2-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -87,10 +87,10 @@
     },
     {
       "id": "slide-08",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+8",
+      "baselineSrc": "/stimuli/baseline/people-3-original.png",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+8",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+8"
+        "no_edit": "/stimuli/baseline/people-3-original.png",
+        "ai_edited_image": "/stimuli/ai-edited/people-3-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -99,10 +99,10 @@
     },
     {
       "id": "slide-09",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+9",
+      "baselineSrc": "/stimuli/baseline/people-4-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+9",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+9"
+        "no_edit": "/stimuli/baseline/people-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-4-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -111,10 +111,10 @@
     },
     {
       "id": "slide-10",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+10",
+      "baselineSrc": "/stimuli/baseline/people-5-original.png",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+10",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+10"
+        "no_edit": "/stimuli/baseline/people-5-original.png",
+        "ai_edited_image": "/stimuli/ai-edited/people-5-edited.png"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -123,10 +123,10 @@
     },
     {
       "id": "slide-11",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+11",
+      "baselineSrc": "/stimuli/baseline/env-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+11",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+11"
+        "no_edit": "/stimuli/baseline/env-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-1-edited.jpeg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -135,10 +135,46 @@
     },
     {
       "id": "slide-12",
-      "baselineSrc": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+12",
+      "baselineSrc": "/stimuli/baseline/env-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "https://placehold.co/800x600/1a1a2e/eaeaea?text=Original+12",
-        "ai_edited_image": "https://placehold.co/800x600/3d1f2d/f5d0fe?text=AI+still+12"
+        "no_edit": "/stimuli/baseline/env-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-2-edited.png"
+      },
+      "conditionMediaType": {
+        "no_edit": "image",
+        "ai_edited_image": "image"
+      }
+    },
+    {
+      "id": "slide-13",
+      "baselineSrc": "/stimuli/baseline/env-3-original.jpg",
+      "conditionSrc": {
+        "no_edit": "/stimuli/baseline/env-3-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-3-edited.jpeg"
+      },
+      "conditionMediaType": {
+        "no_edit": "image",
+        "ai_edited_image": "image"
+      }
+    },
+    {
+      "id": "slide-14",
+      "baselineSrc": "/stimuli/baseline/env-4-original.jpg",
+      "conditionSrc": {
+        "no_edit": "/stimuli/baseline/env-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-4-edited.jpeg"
+      },
+      "conditionMediaType": {
+        "no_edit": "image",
+        "ai_edited_image": "image"
+      }
+    },
+    {
+      "id": "slide-15",
+      "baselineSrc": "/stimuli/baseline/env-5-original.png",
+      "conditionSrc": {
+        "no_edit": "/stimuli/baseline/env-5-original.png",
+        "ai_edited_image": "/stimuli/ai-edited/env-5-edited.jpeg"
       },
       "conditionMediaType": {
         "no_edit": "image",

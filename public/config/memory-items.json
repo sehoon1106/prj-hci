@@ -3,84 +3,105 @@
   "items": [
     {
       "slideId": "slide-01",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+1",
+      "maskedSrc": "/stimuli/masked/object-1-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-01)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-02",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+2",
+      "maskedSrc": "/stimuli/masked/object-2-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-02)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-03",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+3",
+      "maskedSrc": "/stimuli/masked/object-3-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-03)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-04",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+4",
+      "maskedSrc": "/stimuli/masked/object-4-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-04)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-05",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+5",
+      "maskedSrc": "/stimuli/masked/object-5-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-05)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-06",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+6",
+      "maskedSrc": "/stimuli/masked/people-1-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-06)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-07",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+7",
+      "maskedSrc": "/stimuli/masked/people-2-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-07)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-08",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+8",
+      "maskedSrc": "/stimuli/masked/people-3-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-08)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-09",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+9",
+      "maskedSrc": "/stimuli/masked/people-4-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-09)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-10",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+10",
+      "maskedSrc": "/stimuli/masked/people-5-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-10)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-11",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+11",
+      "maskedSrc": "/stimuli/masked/env-1-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-11)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-12",
-      "maskedSrc": "https://placehold.co/800x600/2a2a3a/bbb?text=Masked+12",
+      "maskedSrc": "/stimuli/masked/env-2-masked.png",
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+    },
+    {
+      "slideId": "slide-13",
+      "maskedSrc": "/stimuli/masked/env-3-masked.png",
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+    },
+    {
+      "slideId": "slide-14",
+      "maskedSrc": "/stimuli/masked/env-4-masked.png",
+      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
+      "expectedAnswer": "agree",
+      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+    },
+    {
+      "slideId": "slide-15",
+      "maskedSrc": "/stimuli/masked/env-5-masked.png",
       "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."

@@ -123,6 +123,26 @@ export interface StudyMeta {
   /** Minimum seconds on the second (condition) image set before auto-advance */
   conditionDurationSeconds: number
   showConditionKeyToParticipant: boolean
+  /**
+   * If set, the post-study step shows this link (e.g. Google Form) instead of `post-survey.json`.
+   * Submitted `postSurvey` in the payload stays empty unless the in-app survey is used.
+   */
+  postStudyExternalFormUrl?: string
+  /**
+   * Per session: shuffle presentation order for each phase independently.
+   * Indices in `slides.json` / `memory-items.json` and `slideId` stay stable; event logs and
+   * `MemoryResponse.itemIndex` refer to config order, not screen order.
+   */
+  randomizeBaselineSlideOrder?: boolean
+  randomizeConditionSlideOrder?: boolean
+  randomizeMemoryItemOrder?: boolean
+}
+
+/** `baseline` / `condition`: presentation index → slide index in `slides.json`. `memory` → item index in `memory-items.json`. */
+export interface PresentationOrders {
+  baseline: number[]
+  condition: number[]
+  memory: number[]
 }
 
 export interface FillerConfig {
@@ -141,7 +161,10 @@ export interface LogEvent {
 }
 
 export interface MemoryResponse {
+  /** Index in original `memory-items.json` / `bundle.memory.items` (not screen order). */
   itemIndex: number
+  /** Index in the randomized memory-test sequence (0…n−1). */
+  presentationIndex: number
   slideId: string
   recall: 'agree' | 'disagree' | 'unsure'
   confidence: number

@@ -4,39 +4,10 @@
   "title": "Post-study questionnaire",
   "pages": [
     {
-      "id": "moderators",
-      "title": "Further questions",
-      "description": "A few background questions about your everyday habits and attitudes.",
-      "items": [
-        {
-          "id": "ai_filter_familiarity",
-          "type": "likert7",
-          "prompt": "How familiar are you with image editing or AI filters (e.g., Instagram filters, auto-enhance)?",
-          "labels": { "min": "Not at all familiar", "max": "Very familiar" },
-          "required": true
-        },
-        {
-          "id": "forgetting_frequency",
-          "type": "likert7",
-          "prompt": "In daily life, how easy is it for you to stay on top of schedules and everyday plans? (Higher = easier)",
-          "labels": { "min": "Very difficult", "max": "Very easy" },
-          "required": true
-        },
-        {
-          "id": "memory_efficacy_visual",
-          "type": "likert7",
-          "prompt": "When you look at photographs, how closely do you usually attend to what is shown?",
-          "labels": { "min": "Not closely at all", "max": "Very closely" },
-          "required": true
-        },
-        {
-          "id": "skepticism_media",
-          "type": "likert7",
-          "prompt": "How much do you doubt information from official news or institutions?",
-          "labels": { "min": "Do not doubt at all", "max": "Strongly doubt" },
-          "required": true
-        }
-      ]
+      "id": "unused_external_form",
+      "title": "Not used",
+      "description": "Reserved when using an external post-study form URL in study.json.",
+      "items": []
     }
   ]
 }

@@ -1,8 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
 import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
+
+/** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
+const VIEW_PREP_MIN_WAIT_SECONDS = 5
+
+function usePrepScreenLock(viewingStarted: boolean) {
+  const [secondsLeft, setSecondsLeft] = useState(VIEW_PREP_MIN_WAIT_SECONDS)
+  useEffect(() => {
+    if (viewingStarted) return
+    setSecondsLeft(VIEW_PREP_MIN_WAIT_SECONDS)
+    let remaining = VIEW_PREP_MIN_WAIT_SECONDS
+    const id = window.setInterval(() => {
+      remaining -= 1
+      setSecondsLeft(Math.max(0, remaining))
+      if (remaining <= 0) window.clearInterval(id)
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [viewingStarted])
+  return secondsLeft
+}
 
 function SlideCoverageProgress({
   seenCount,
@@ -13,19 +32,30 @@ function SlideCoverageProgress({
 }) {
   const pct = total > 0 ? Math.round((seenCount / total) * 100) : 0
   return (
-    <div className="media-progress">
-      <p className="media-progress-label">
-        Images seen at least once: {seenCount} / {total} ({pct}%)
+    <div className="slide-coverage-progress">
+      <p className="slide-coverage-label">
+        <span className="slide-coverage-heading">Image coverage</span>
+        <span className="slide-coverage-count">
+          {seenCount} / {total} unique slides viewed ({pct}%)
+        </span>
       </p>
       <div
-        className="media-progress-track"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
+        className="slide-coverage-dots"
+        role="img"
+        aria-label={`${seenCount} of ${total} slides viewed at least once`}
       >
-        <div className="media-progress-fill" style={{ width: `${pct}%` }} />
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            className={`slide-coverage-dot ${i < seenCount ? 'slide-coverage-dot--filled' : ''}`}
+            aria-hidden
+          />
+        ))}
       </div>
+      <p className="slide-coverage-hint muted small">
+        One dot per slide; filled dots count how many you have opened at least once (order does not
+        matter).
+      </p>
     </div>
   )
 }
@@ -41,21 +71,97 @@ function PhaseTimeProgress({
   const pct =
     durationSec > 0 ? Math.min(100, Math.round((elapsed / durationSec) * 100)) : 0
   return (
-    <div className="media-progress phase-time-progress">
-      <p className="media-progress-label">
-        Time on this step: {elapsed}s / {durationSec}s — next step starts when the bar is full ({pct}%)
+    <div className="phase-time-progress">
+      <p className="phase-time-label">
+        <span className="phase-time-heading">Step timer</span>
+        <span className="phase-time-numbers">
+          {elapsed}s / {durationSec}s — auto-advances when this reaches 100%
+        </span>
       </p>
       <div
-        className="media-progress-track"
+        className="phase-time-track"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div
-          className="media-progress-fill media-progress-fill--time"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="phase-time-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function ExternalPostStudyPhase({
+  formUrl,
+  onComplete,
+  logEvent,
+}: {
+  formUrl: string
+  onComplete: () => void
+  logEvent: (t: string, p?: Record<string, unknown>) => void
+}) {
+  const [surveyOpened, setSurveyOpened] = useState(false)
+  return (
+    <div className="card">
+      <header className="card-header">
+        <h2>Post-study questionnaire</h2>
+        <p className="muted">
+          Please complete the <strong>Team Othee Post-Study Survey</strong> in Google Forms. Use the
+          same <strong>Participant ID</strong> you entered at the start of this task if the form asks
+          for it.
+        </p>
+      </header>
+      <div className="btn-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+        <a
+          className="btn primary"
+          href={formUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => {
+            setSurveyOpened(true)
+            logEvent('post_study_external_open', { url: formUrl })
+          }}
+        >
+          Open survey (new tab)
+        </a>
+      </div>
+      <p className="muted small" style={{ marginTop: '1rem' }}>
+        After you submit the form, return here and press continue so we can finish saving your session.
+      </p>
+      <div className="btn-row" style={{ marginTop: '1.25rem' }}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!surveyOpened}
+          title={
+            surveyOpened
+              ? undefined
+              : 'Open the survey link above first, then return here when you are done.'
+          }
+          onClick={() => {
+            logEvent('post_study_external_continue', { url: formUrl })
+            onComplete()
+          }}
+        >
+          I finished the external survey — continue
+        </button>
+      </div>
+      {!surveyOpened ? (
+        <p className="muted small" style={{ marginTop: '0.5rem' }}>
+          The continue button stays off until you open the survey link (new tab) at least once.
+        </p>
+      ) : null}
+      <div className="debug-skip-bar">
+        <button
+          type="button"
+          className="btn debug-skip"
+          onClick={() => {
+            logEvent('post_study_external_debug_skip', { url: formUrl })
+            onComplete()
+          }}
+        >
+          [Debug] Skip (pretend external survey done)
+        </button>
       </div>
     </div>
   )
@@ -125,11 +231,24 @@ export function StudyFlow() {
     submitStatus,
     submitMethod,
     finalizeStudy,
+    presentationOrders,
   } = useStudySession()
 
   const meta = bundle.study
   const slides = bundle.slides.slides
   const memoryItems = bundle.memory.items
+  const orderedBaselineSlides = useMemo(
+    () => presentationOrders.baseline.map((i) => slides[i]!),
+    [slides, presentationOrders.baseline],
+  )
+  const orderedConditionSlides = useMemo(
+    () => presentationOrders.condition.map((i) => slides[i]!),
+    [slides, presentationOrders.condition],
+  )
+  const orderedMemoryItems = useMemo(
+    () => presentationOrders.memory.map((i) => memoryItems[i]!),
+    [memoryItems, presentationOrders.memory],
+  )
 
   if (phase === 'intro') {
     return (
@@ -219,6 +338,11 @@ export function StudyFlow() {
                 condition,
                 conditionLabel: bundle.study.conditionLabels[condition],
                 userAgent: navigator.userAgent,
+                presentationOrders: {
+                  baseline: [...presentationOrders.baseline],
+                  condition: [...presentationOrders.condition],
+                  memory: [...presentationOrders.memory],
+                },
               })
               logEvent('phase_enter', { phase: 'demographics' })
               setPhase('demographics')
@@ -241,6 +365,11 @@ export function StudyFlow() {
                 conditionLabel: bundle.study.conditionLabels.no_edit,
                 userAgent: navigator.userAgent,
                 debugSkip: true,
+                presentationOrders: {
+                  baseline: [...presentationOrders.baseline],
+                  condition: [...presentationOrders.condition],
+                  memory: [...presentationOrders.memory],
+                },
               })
               logEvent('phase_enter', { phase: 'demographics' })
               setPhase('demographics')
@@ -261,6 +390,7 @@ export function StudyFlow() {
         onChange={setDemographicsAnswers}
         logSurveyId="demographics"
         onLog={logEvent}
+        disableSubmitUntilValid
         onComplete={() => {
           logEvent('phase_enter', { phase: 'pre_survey' })
           setPhase('pre_survey')
@@ -281,6 +411,7 @@ export function StudyFlow() {
         onChange={setPreAnswers}
         logSurveyId="pre"
         onLog={logEvent}
+        disableSubmitUntilValid
         onComplete={() => {
           logEvent('phase_enter', { phase: 'baseline' })
           setPhase('baseline')
@@ -298,7 +429,8 @@ export function StudyFlow() {
       <BaselinePhase
         title={meta.baselinePhaseTitle}
         instructions={meta.baselinePhaseInstructions}
-        slides={slides}
+        slides={orderedBaselineSlides}
+        configIndexAtPresentation={presentationOrders.baseline}
         durationSec={meta.baselineDurationSeconds}
         onComplete={() => {
           logEvent('phase_enter', { phase: 'filler' })
@@ -378,6 +510,7 @@ export function StudyFlow() {
         onChange={setAttention2Answers}
         logSurveyId="attention2"
         onLog={logEvent}
+        disableSubmitUntilValid
         onComplete={() => {
           logEvent('phase_enter', { phase: 'condition' })
           setPhase('condition')
@@ -408,7 +541,8 @@ export function StudyFlow() {
       <ConditionPhase
         title={meta.conditionPhaseTitle}
         instructions={meta.conditionPhaseInstructions}
-        slides={slides}
+        slides={orderedConditionSlides}
+        configIndexAtPresentation={presentationOrders.condition}
         condition={conditionKey}
         durationSec={meta.conditionDurationSeconds}
         onComplete={() => {
@@ -425,7 +559,8 @@ export function StudyFlow() {
       <MemoryPhase
         title={meta.memoryPhaseTitle}
         instructions={meta.memoryPhaseInstructions}
-        items={memoryItems}
+        items={orderedMemoryItems}
+        configItemIndexAtPresentation={presentationOrders.memory}
         responses={memoryResponses}
         onChange={setMemoryResponses}
         onComplete={() => {
@@ -438,6 +573,19 @@ export function StudyFlow() {
   }
 
   if (phase === 'post_survey') {
+    const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
+    if (externalPostUrl) {
+      return (
+        <ExternalPostStudyPhase
+          formUrl={externalPostUrl}
+          logEvent={logEvent}
+          onComplete={() => {
+            logEvent('phase_enter', { phase: 'complete' })
+            setPhase('complete')
+          }}
+        />
+      )
+    }
     return (
       <SurveyRunner
         config={bundle.postSurvey}
@@ -475,6 +623,7 @@ function BaselinePhase({
   title,
   instructions,
   slides,
+  configIndexAtPresentation,
   durationSec,
   onComplete,
   logEvent,
@@ -482,6 +631,8 @@ function BaselinePhase({
   title: string
   instructions: string
   slides: { id: string; baselineSrc: string }[]
+  /** Same length as `slides`: config row index in `slides.json` for each presentation position. */
+  configIndexAtPresentation: number[]
   durationSec: number
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
@@ -494,6 +645,7 @@ function BaselinePhase({
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const prevIdxRef = useRef<number | null>(null)
   const autoAdvancedRef = useRef(false)
+  const prepLockSecondsLeft = usePrepScreenLock(viewingStarted)
 
   useEffect(() => {
     if (!viewingStarted) return
@@ -537,9 +689,13 @@ function BaselinePhase({
     const prev = prevIdxRef.current
     prevIdxRef.current = idx
     if (prev !== null && prev !== idx) {
-      logEvent('baseline_slide', { slideId: slides[idx].id, index: idx })
+      logEvent('baseline_slide', {
+        slideId: slides[idx].id,
+        presentationIndex: idx,
+        configSlideIndex: configIndexAtPresentation[idx],
+      })
     }
-  }, [idx, slides, logEvent, viewingStarted])
+  }, [idx, slides, logEvent, viewingStarted, configIndexAtPresentation])
 
   const go = (dir: 1 | -1) => {
     setIdx((i) => (i + dir + slides.length) % slides.length)
@@ -576,10 +732,22 @@ function BaselinePhase({
             cannot extend or pause this block.
           </p>
         </div>
+        {prepLockSecondsLeft > 0 ? (
+          <p className="muted small" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            Please read the instructions above. Start button unlocks in{' '}
+            <strong>{prepLockSecondsLeft}</strong>s.
+          </p>
+        ) : null}
         <div className="btn-row" style={{ justifyContent: 'center' }}>
           <button
             type="button"
             className="btn primary"
+            disabled={prepLockSecondsLeft > 0}
+            title={
+              prepLockSecondsLeft > 0
+                ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                : undefined
+            }
             onClick={() => {
               logEvent('baseline_viewing_prepare_ack', {
                 slideCount: slides.length,
@@ -605,6 +773,7 @@ function BaselinePhase({
                 durationSec,
                 slideCount: slides.length,
                 beforeViewingStart: true,
+                prepLockBypass: prepLockSecondsLeft > 0,
               })
               logEvent('baseline_complete', { elapsed, maxIdx, debugSkip: true })
               onComplete()
@@ -694,6 +863,7 @@ function ConditionPhase({
   title,
   instructions,
   slides,
+  configIndexAtPresentation,
   condition,
   durationSec,
   onComplete,
@@ -702,6 +872,7 @@ function ConditionPhase({
   title: string
   instructions: string
   slides: import('../types/study').SlideDef[]
+  configIndexAtPresentation: number[]
   condition: import('../types/study').ConditionKey
   durationSec: number
   onComplete: () => void
@@ -712,6 +883,7 @@ function ConditionPhase({
   const [elapsed, setElapsed] = useState(0)
   const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([0]))
   const autoAdvancedRef = useRef(false)
+  const prepLockSecondsLeft = usePrepScreenLock(viewingStarted)
 
   useEffect(() => {
     setIdx(0)
@@ -755,12 +927,13 @@ function ConditionPhase({
     const slide = slides[idx]
     logEvent('condition_slide', {
       slideId: slide.id,
-      index: idx,
+      presentationIndex: idx,
+      configSlideIndex: configIndexAtPresentation[idx],
       condition,
       media: slide.conditionMediaType[condition],
       src: slide.conditionSrc[condition],
     })
-  }, [idx, slides, condition, logEvent, viewingStarted])
+  }, [idx, slides, condition, logEvent, viewingStarted, configIndexAtPresentation])
 
   const slide = slides[idx]
   const src = slide.conditionSrc[condition]
@@ -782,10 +955,22 @@ function ConditionPhase({
             cannot extend or pause this block.
           </p>
         </div>
+        {prepLockSecondsLeft > 0 ? (
+          <p className="muted small" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+            Please read the instructions above. Start button unlocks in{' '}
+            <strong>{prepLockSecondsLeft}</strong>s.
+          </p>
+        ) : null}
         <div className="btn-row" style={{ justifyContent: 'center' }}>
           <button
             type="button"
             className="btn primary"
+            disabled={prepLockSecondsLeft > 0}
+            title={
+              prepLockSecondsLeft > 0
+                ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                : undefined
+            }
             onClick={() => {
               logEvent('condition_viewing_prepare_ack', {
                 slideCount: slides.length,
@@ -809,6 +994,7 @@ function ConditionPhase({
                 condition,
                 elapsed,
                 beforeViewingStart: true,
+                prepLockBypass: prepLockSecondsLeft > 0,
               })
               logEvent('condition_complete', { condition, debugSkip: true })
               onComplete()
@@ -894,6 +1080,7 @@ function MemoryPhase({
   title,
   instructions,
   items,
+  configItemIndexAtPresentation,
   responses,
   onChange,
   onComplete,
@@ -902,6 +1089,7 @@ function MemoryPhase({
   title: string
   instructions: string
   items: import('../types/study').MemoryItemDef[]
+  configItemIndexAtPresentation: number[]
   responses: MemoryResponse[]
   onChange: (r: MemoryResponse[]) => void
   onComplete: () => void
@@ -928,9 +1116,11 @@ function MemoryPhase({
     if (!recall || confidence === null) return
     const expected = item.expectedAnswer
     const isCorrect = memoryTrialCorrectness(recall, expected)
+    const configItemIndex = configItemIndexAtPresentation[step]!
     const next = [...responses]
     next[step] = {
-      itemIndex: step,
+      itemIndex: configItemIndex,
+      presentationIndex: step,
       slideId: item.slideId,
       recall,
       confidence,
@@ -940,6 +1130,8 @@ function MemoryPhase({
     onChange(next)
     logEvent('memory_answer', {
       step,
+      presentationIndex: step,
+      configItemIndex,
       slideId: item.slideId,
       recall,
       confidence,
@@ -967,8 +1159,10 @@ function MemoryPhase({
             const stub = items.map((it, i) => {
               const expected = it.expectedAnswer
               const recall = 'unsure' as const
+              const configItemIndex = configItemIndexAtPresentation[i]!
               return {
-                itemIndex: i,
+                itemIndex: configItemIndex,
+                presentationIndex: i,
                 slideId: it.slideId,
                 recall,
                 confidence: 4,

@@ -24,5 +24,9 @@
   },
   "baselineDurationSeconds": 60,
   "conditionDurationSeconds": 60,
-  "showConditionKeyToParticipant": false
+  "showConditionKeyToParticipant": false,
+  "randomizeBaselineSlideOrder": true,
+  "randomizeConditionSlideOrder": true,
+  "randomizeMemoryItemOrder": true,
+  "postStudyExternalFormUrl": "https://forms.gle/Zgu9HEKjAk8vajuS8"
 }

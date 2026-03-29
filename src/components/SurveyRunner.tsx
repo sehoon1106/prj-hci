@@ -99,10 +99,22 @@ function validatePage(
       if (v !== item.correctValue)
         return 'The attention-check answer is incorrect. Please read the instructions again.'
     } else if (item.required !== false) {
-      if (v === undefined || v === '') return 'Please answer all required items.'
+      if (item.type === 'text') {
+        const s = typeof v === 'string' ? v : ''
+        if (!s.trim()) return 'Please answer all required items.'
+      } else if (v === undefined || v === '') {
+        return 'Please answer all required items.'
+      }
     }
   }
   return null
+}
+
+function pageSatisfiesRequirements(
+  items: SurveyItem[],
+  answers: Record<string, string | number>,
+): boolean {
+  return validatePage(items, answers) === null
 }
 
 export function SurveyRunner({
@@ -113,6 +125,7 @@ export function SurveyRunner({
   logSurveyId,
   onLog,
   onDebugSkipEntireSurvey,
+  disableSubmitUntilValid = false,
 }: {
   config: SurveyConfig
   answers: Record<string, string | number>
@@ -122,10 +135,14 @@ export function SurveyRunner({
   onLog?: (type: string, payload?: Record<string, unknown>) => void
   /** Debug: mark entire survey complete without validation and go to next phase */
   onDebugSkipEntireSurvey?: () => void
+  /** If true, Next/Done stays disabled until the current page passes validation (all required answers + correct attention checks). */
+  disableSubmitUntilValid?: boolean
 }) {
   const [pageIdx, setPageIdx] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const page = config.pages[pageIdx]
+  const canSubmit = pageSatisfiesRequirements(page.items, answers)
+  const submitDisabled = disableSubmitUntilValid && !canSubmit
 
   const setField = (id: string, v: string | number) => {
     onChange({ ...answers, [id]: v })
@@ -197,7 +214,16 @@ export function SurveyRunner({
         ) : (
           <span />
         )}
-        <button type="submit" className="btn primary">
+        <button
+          type="submit"
+          className="btn primary"
+          disabled={submitDisabled}
+          title={
+            submitDisabled
+              ? 'Fill in or select every required answer on this page to continue.'
+              : undefined
+          }
+        >
           {pageIdx + 1 >= config.pages.length ? 'Done' : 'Next'}
         </button>
       </div>

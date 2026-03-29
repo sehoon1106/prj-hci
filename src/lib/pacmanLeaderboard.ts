@@ -35,7 +35,9 @@ function pickInitial(name: unknown): string {
 
 function demoNameFromDemographics(d: unknown): unknown {
   if (!d || typeof d !== 'object') return undefined
-  return (d as Record<string, unknown>).demo_name
+  const o = d as Record<string, unknown>
+  const id = o.participant_id ?? o.demo_name
+  return id
 }
 
 function pacmanScoreFromFillerStats(stats: unknown): number | null {
@@ -54,7 +56,7 @@ function pacmanScoreFromFillerStats(stats: unknown): number | null {
 
 /**
  * Loads submitted sessions and builds a descending score list.
- * Uses initial from `demographics.demo_name` only (no full name in UI).
+ * Uses initial from `demographics.participant_id` (or legacy `demo_name`) only (no full ID in UI beyond one grapheme).
  */
 export async function fetchPacmanLeaderboard(
   client: SupabaseClient,
