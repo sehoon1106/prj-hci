@@ -225,6 +225,8 @@ VITE_BASE_PATH=/repo-name/
 
 `vite.config.ts` reads `VITE_BASE_PATH` for Vite `base`. For a user site root (`user.github.io`), keep the default `/`.
 
+Stimulus URLs in JSON stay as `/stimuli/...`; at runtime `assetUrl()` prefixes `import.meta.env.BASE_URL` so images and videos load under the same subpath as the app. **The production build must still set `VITE_BASE_PATH` to match the Pages URL** (e.g. `/memory-study/`), or assets will 404.
+
 Point Pages at `dist` or use Actions to run `npm run build` and upload artifacts.
 
 ## Project layout (summary)

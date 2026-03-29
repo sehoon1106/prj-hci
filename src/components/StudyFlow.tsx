@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
+import { assetUrl } from '../lib/assetUrl'
 import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
 
 /** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
@@ -679,7 +680,7 @@ function BaselinePhase({
   useEffect(() => {
     for (const slide of slides) {
       const img = new Image()
-      img.src = slide.baselineSrc
+      img.src = assetUrl(slide.baselineSrc)
     }
   }, [slides])
 
@@ -831,7 +832,7 @@ function BaselinePhase({
       >
         <img
           key={s.id}
-          src={s.baselineSrc}
+          src={assetUrl(s.baselineSrc)}
           alt=""
           className="stage-img"
           draggable={false}
@@ -841,7 +842,7 @@ function BaselinePhase({
       </div>
       <div className="visually-hidden" aria-hidden>
         {slides.map((sl) => (
-          <img key={`preload-${sl.id}`} src={sl.baselineSrc} alt="" decoding="async" />
+          <img key={`preload-${sl.id}`} src={assetUrl(sl.baselineSrc)} alt="" decoding="async" />
         ))}
       </div>
       <div className="swipe-hint muted small">
@@ -936,7 +937,7 @@ function ConditionPhase({
   }, [idx, slides, condition, logEvent, viewingStarted, configIndexAtPresentation])
 
   const slide = slides[idx]
-  const src = slide.conditionSrc[condition]
+  const src = assetUrl(slide.conditionSrc[condition])
   const media = slide.conditionMediaType[condition]
 
   if (!viewingStarted) {
@@ -1183,7 +1184,7 @@ function MemoryPhase({
       </div>
       <img
         key={item.slideId}
-        src={item.maskedSrc}
+        src={assetUrl(item.maskedSrc)}
         alt=""
         className="masked-img"
         decoding="async"

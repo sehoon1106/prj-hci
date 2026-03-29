@@ -39,7 +39,7 @@
     {
       "slideId": "slide-06",
       "maskedSrc": "/stimuli/masked/people-1-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-06)",
+      "prompt": "Did you remember seeing the person smiling in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },

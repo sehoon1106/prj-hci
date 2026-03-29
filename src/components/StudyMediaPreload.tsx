@@ -1,3 +1,4 @@
+import { assetUrl } from '../lib/assetUrl'
 import { useStudySession } from '../session/StudySessionContext'
 
 /**
@@ -14,7 +15,7 @@ export function StudyMediaPreload() {
       {condition === null
         ? null
         : slides.map((slide) => {
-            const src = slide.conditionSrc[condition]
+            const src = assetUrl(slide.conditionSrc[condition])
             if (slide.conditionMediaType[condition] === 'video') {
               return (
                 <video
@@ -39,7 +40,7 @@ export function StudyMediaPreload() {
       {items.map((it) => (
         <img
           key={`mem-${it.slideId}`}
-          src={it.maskedSrc}
+          src={assetUrl(it.maskedSrc)}
           alt=""
           decoding="async"
           fetchPriority="low"
