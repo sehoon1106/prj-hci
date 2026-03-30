@@ -179,6 +179,24 @@ body {
   border-color: #fde047;
 }
 
+.external-survey-id {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(129, 140, 248, 0.38);
+}
+
+.external-survey-id-value {
+  font-size: 1.12rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: #e8eafd;
+}
+
 .btn.choice {
   flex: 1;
   background: #1a2235;

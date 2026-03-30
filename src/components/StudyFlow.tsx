@@ -93,12 +93,21 @@ function PhaseTimeProgress({
   )
 }
 
+function formatParticipantIdForDisplay(answers: Record<string, string | number>): string {
+  const raw = answers.participant_id ?? answers.demo_name
+  if (raw === undefined || raw === '') return ''
+  return String(raw).trim()
+}
+
 function ExternalPostStudyPhase({
   formUrl,
+  participantIdDisplay,
   onComplete,
   logEvent,
 }: {
   formUrl: string
+  /** Same value as demographics (for Google Form). */
+  participantIdDisplay: string
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
@@ -109,11 +118,31 @@ function ExternalPostStudyPhase({
         <h2>Post-study questionnaire</h2>
         <p className="muted">
           Please complete the <strong>Team Othee Post-Study Survey</strong> in Google Forms. Use the
-          same <strong>Participant ID</strong> you entered at the start of this task if the form asks
-          for it.
+          <strong> Participant ID </strong>
+          shown next to the link below if the form asks for it.
         </p>
       </header>
-      <div className="btn-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div
+        className="external-survey-actions"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '0.85rem',
+          marginTop: '0.35rem',
+        }}
+      >
+        {participantIdDisplay ? (
+          <p className="external-survey-id" role="status">
+            <span className="muted small">Your Participant ID</span>
+            <strong className="external-survey-id-value">{participantIdDisplay}</strong>
+          </p>
+        ) : (
+          <p className="muted small" role="status">
+            No Participant ID was stored from this session. If the form asks for one, use the same ID you
+            were given by the researcher.
+          </p>
+        )}
         <a
           className="btn primary"
           href={formUrl}
@@ -121,7 +150,10 @@ function ExternalPostStudyPhase({
           rel="noreferrer"
           onClick={() => {
             setSurveyOpened(true)
-            logEvent('post_study_external_open', { url: formUrl })
+            logEvent('post_study_external_open', {
+              url: formUrl,
+              participantId: participantIdDisplay || undefined,
+            })
           }}
         >
           Open survey (new tab)
@@ -141,7 +173,10 @@ function ExternalPostStudyPhase({
               : 'Open the survey link above first, then return here when you are done.'
           }
           onClick={() => {
-            logEvent('post_study_external_continue', { url: formUrl })
+            logEvent('post_study_external_continue', {
+              url: formUrl,
+              participantId: participantIdDisplay || undefined,
+            })
             onComplete()
           }}
         >
@@ -260,10 +295,10 @@ export function StudyFlow() {
           <p className="muted">{meta.shortDescription}</p>
         </header>
         <div className="intro-no-refresh" role="alert">
-          <p className="intro-no-refresh-title">Do not refresh this page</p>
+          <p className="intro-no-refresh-title">Do not refresh or use the browser Back button</p>
           <p className="intro-no-refresh-body">
-            <strong>Do not refresh, reload, or close this tab</strong> while you are in the study. Doing so can lose
-            your answers and you may need to start over.
+            <strong>Do not refresh, reload, use the Back button, or close this tab</strong> while you are in the study.
+            Doing so can lose your answers and you may need to start over.
           </p>
         </div>
         {meta.procedureSteps && meta.procedureSteps.length > 0 ? (
@@ -580,6 +615,7 @@ export function StudyFlow() {
       return (
         <ExternalPostStudyPhase
           formUrl={externalPostUrl}
+          participantIdDisplay={formatParticipantIdForDisplay(demographicsAnswers)}
           logEvent={logEvent}
           onComplete={() => {
             logEvent('phase_enter', { phase: 'complete' })
