@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "compress-stimuli": "node scripts/compress-stimuli.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.3",
@@ -35,6 +36,7 @@
     "patch-package": "^8.0.0",
     "prop-types": "^15.8.1",
     "sass": "^1.98.0",
+    "sharp": "^0.34.5",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
     "vite": "^8.0.1"

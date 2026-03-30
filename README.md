@@ -25,11 +25,11 @@ npm run preview # preview dist
 
 1. Consent and introduction  
 2. **Pre-survey** + first attention check (`pre-survey.json`)  
-3. **Original images** (12) — swipe or buttons; when **minimum time (default 60s)** elapses, the app **advances automatically** (no manual continue button)  
+3. **Original images** (15) — swipe or buttons; when **minimum time (default 60s)** elapses, the app **advances automatically** (no manual continue button)  
 4. **Filler** — default ~1 min Pac-Man (`filler.json`, `type: "pacman"`)  
 5. **Second attention check** (`attention-2.json`)  
 6. **Condition-specific second stimulus** — previous/next only (no return to baseline); after **minimum time** (`conditionDurationSeconds` in `study.json`, default 60s) the app advances automatically; copy and labels from `study.json`  
-7. **Memory test** (12 items) — Agree / Disagree / Not sure + confidence 1–7 (`memory-items.json`)  
+7. **Memory test** (15 items) — Agree / Disagree / Not sure + confidence 1–7 (`memory-items.json`)  
 8. **Post-survey** (`post-survey.json`)  
 9. On completion — **submit** (Supabase or JSON download)
 
@@ -232,6 +232,7 @@ Point Pages at `dist` or use Actions to run `npm run build` and upload artifacts
 ## Project layout (summary)
 
 ```
+scripts/compress-stimuli.mjs   # npm run compress-stimuli — batch resize/compress public/stimuli (sharp)
 public/config/          # Study definition (replaceable)
 public/supabase-schema.sql
 src/
