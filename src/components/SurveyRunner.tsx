@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { DebugSkipBar } from '../lib/debugUi'
 import type { SurveyConfig, SurveyItem } from '../types/study'
 
 function renderItem(
@@ -181,7 +182,7 @@ export function SurveyRunner({
         {page.description ? <p className="muted">{page.description}</p> : null}
       </header>
       {onDebugSkipEntireSurvey ? (
-        <div className="debug-skip-bar">
+        <DebugSkipBar>
           <button
             type="button"
             className="btn debug-skip"
@@ -196,7 +197,7 @@ export function SurveyRunner({
           >
             [Debug] Skip entire survey (next phase without validation)
           </button>
-        </div>
+        </DebugSkipBar>
       ) : null}
       <div className="survey-items">
         {page.items.map((item) => (

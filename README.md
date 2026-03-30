@@ -233,6 +233,7 @@ Point Pages at `dist` or use Actions to run `npm run build` and upload artifacts
 
 ```
 scripts/compress-stimuli.mjs   # npm run compress-stimuli — batch resize/compress public/stimuli (sharp)
+src/lib/debugUi.tsx           # Pilot-only “[Debug]” skip buttons — shown only in `npm run dev`, hidden in production builds
 public/config/          # Study definition (replaceable)
 public/supabase-schema.sql
 src/

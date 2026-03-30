@@ -3,6 +3,7 @@ import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
 import { assetUrl } from '../lib/assetUrl'
+import { DebugSkipBar } from '../lib/debugUi'
 import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
 
 /** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
@@ -152,7 +153,7 @@ function ExternalPostStudyPhase({
           The continue button stays off until you open the survey link (new tab) at least once.
         </p>
       ) : null}
-      <div className="debug-skip-bar">
+      <DebugSkipBar>
         <button
           type="button"
           className="btn debug-skip"
@@ -163,7 +164,7 @@ function ExternalPostStudyPhase({
         >
           [Debug] Skip (pretend external survey done)
         </button>
-      </div>
+      </DebugSkipBar>
     </div>
   )
 }
@@ -352,7 +353,7 @@ export function StudyFlow() {
             Begin
           </button>
         </div>
-        <div className="debug-skip-bar">
+        <DebugSkipBar>
           <button
             type="button"
             className="btn debug-skip"
@@ -378,7 +379,7 @@ export function StudyFlow() {
           >
             [Debug] Skip intro (auto-check consent, skip Begin)
           </button>
-        </div>
+        </DebugSkipBar>
       </div>
     )
   }
@@ -471,11 +472,11 @@ export function StudyFlow() {
           <h2>{bundle.filler.title}</h2>
           <p className="muted">{bundle.filler.instructions}</p>
         </header>
-        <div className="debug-skip-bar">
+        <DebugSkipBar>
           <button type="button" className="btn debug-skip" onClick={skipFillerDebug}>
             [Debug] Skip filler timer
           </button>
-        </div>
+        </DebugSkipBar>
         {bundle.filler.type === 'pacman' ? (
           <FillerPacMan
             durationSeconds={bundle.filler.minDurationSeconds}
@@ -763,7 +764,7 @@ function BaselinePhase({
             Start viewing images
           </button>
         </div>
-        <div className="debug-skip-bar">
+        <DebugSkipBar>
           <button
             type="button"
             className="btn debug-skip"
@@ -785,7 +786,7 @@ function BaselinePhase({
           >
             [Debug] Skip baseline (ignore timer)
           </button>
-        </div>
+        </DebugSkipBar>
       </div>
     )
   }
@@ -807,7 +808,7 @@ function BaselinePhase({
           When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
-      <div className="debug-skip-bar">
+      <DebugSkipBar>
         <button
           type="button"
           className="btn debug-skip"
@@ -827,7 +828,7 @@ function BaselinePhase({
         >
           [Debug] Skip baseline (ignore timer)
         </button>
-      </div>
+      </DebugSkipBar>
       <div
         className="swipe-stage"
         onTouchStart={onTouchStart}
@@ -994,7 +995,7 @@ function ConditionPhase({
             Start viewing images
           </button>
         </div>
-        <div className="debug-skip-bar">
+        <DebugSkipBar>
           <button
             type="button"
             className="btn debug-skip"
@@ -1013,7 +1014,7 @@ function ConditionPhase({
           >
             [Debug] Skip stimulus set (ignore timer)
           </button>
-        </div>
+        </DebugSkipBar>
       </div>
     )
   }
@@ -1036,7 +1037,7 @@ function ConditionPhase({
           When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
-      <div className="debug-skip-bar">
+      <DebugSkipBar>
         <button
           type="button"
           className="btn debug-skip"
@@ -1049,7 +1050,7 @@ function ConditionPhase({
         >
           [Debug] Skip stimulus set (ignore timer)
         </button>
-      </div>
+      </DebugSkipBar>
       <div className="swipe-stage">
         {media === 'video' ? (
           <video
@@ -1162,7 +1163,7 @@ function MemoryPhase({
           {step + 1} / {items.length}
         </p>
       </header>
-      <div className="debug-skip-bar">
+      <DebugSkipBar>
         <button
           type="button"
           className="btn debug-skip"
@@ -1191,7 +1192,7 @@ function MemoryPhase({
         >
           [Debug] Skip follow-up block (fill all as Not sure / confidence 4)
         </button>
-      </div>
+      </DebugSkipBar>
       <img
         key={item.slideId}
         src={assetUrl(item.maskedSrc)}
@@ -1308,7 +1309,7 @@ function CompleteScreen({
           researcher unless they tell you otherwise.
         </p>
       ) : null}
-      <div className="debug-skip-bar">
+      <DebugSkipBar>
         <button
           type="button"
           className="btn debug-skip"
@@ -1319,7 +1320,7 @@ function CompleteScreen({
         >
           [Debug] Reload (session / cache testing)
         </button>
-      </div>
+      </DebugSkipBar>
     </div>
   )
 }
