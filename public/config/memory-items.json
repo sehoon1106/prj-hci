@@ -4,106 +4,106 @@
     {
       "slideId": "slide-01",
       "maskedSrc": "/stimuli/masked/object-1-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-01)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing a red graduation robe in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-02",
       "maskedSrc": "/stimuli/masked/object-2-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-02)",
+      "prompt": "Did you remember seeing an American flag in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-03",
       "maskedSrc": "/stimuli/masked/object-3-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-03)",
+      "prompt": "Did you remember seeing a flower on the table in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-04",
       "maskedSrc": "/stimuli/masked/object-4-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-04)",
+      "prompt": "Did you remember seeing a red truck in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-05",
       "maskedSrc": "/stimuli/masked/object-5-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-05)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing a birthday cake in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-06",
       "maskedSrc": "/stimuli/masked/people-1-masked.png",
       "prompt": "Did you remember seeing the person smiling in the original picture?",
-      "expectedAnswer": "agree",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-07",
       "maskedSrc": "/stimuli/masked/people-2-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-07)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing a beard on the man in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-08",
       "maskedSrc": "/stimuli/masked/people-3-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-08)",
+      "prompt": "Did you remember seeing a woman standing beside the two people in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-09",
       "maskedSrc": "/stimuli/masked/people-4-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-09)",
+      "prompt": "Did you remember seeing an adult in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-10",
       "maskedSrc": "/stimuli/masked/people-5-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-10)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing another player in the field in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-11",
       "maskedSrc": "/stimuli/masked/env-1-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-11)",
+      "prompt": "Did you remember seeing part of the land covered by water in the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-12",
       "maskedSrc": "/stimuli/masked/env-2-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
+      "prompt": "Did you remember seeing an island in the background of the original picture?",
       "expectedAnswer": "agree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-13",
       "maskedSrc": "/stimuli/masked/env-3-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing a mountain in the background of the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-14",
       "maskedSrc": "/stimuli/masked/env-4-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing clouds in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     },
     {
       "slideId": "slide-15",
       "maskedSrc": "/stimuli/masked/env-5-masked.png",
-      "prompt": "For the matching image from your first viewing block, is the following statement accurate? (slide-12)",
-      "expectedAnswer": "agree",
+      "prompt": "Did you remember seeing trash in the original picture?",
+      "expectedAnswer": "disagree",
       "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
     }
   ]
