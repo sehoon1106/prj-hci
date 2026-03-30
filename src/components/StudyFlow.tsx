@@ -678,11 +678,14 @@ function BaselinePhase({
   }, [viewingStarted, elapsed, durationSec, maxIdx, logEvent, onComplete])
 
   useEffect(() => {
-    for (const slide of slides) {
+    if (!viewingStarted || slides.length === 0) return
+    const n = slides.length
+    const want = new Set([idx, (idx + 1) % n, (idx - 1 + n) % n])
+    for (const i of want) {
       const img = new Image()
-      img.src = assetUrl(slide.baselineSrc)
+      img.src = assetUrl(slides[i]!.baselineSrc)
     }
-  }, [slides])
+  }, [viewingStarted, idx, slides])
 
   useEffect(() => {
     if (!viewingStarted) return
@@ -840,11 +843,6 @@ function BaselinePhase({
           fetchPriority="high"
         />
       </div>
-      <div className="visually-hidden" aria-hidden>
-        {slides.map((sl) => (
-          <img key={`preload-${sl.id}`} src={assetUrl(sl.baselineSrc)} alt="" decoding="async" />
-        ))}
-      </div>
       <div className="swipe-hint muted small">
         On mobile, swipe left/right or up/down to change slides.
       </div>
@@ -935,6 +933,18 @@ function ConditionPhase({
       src: slide.conditionSrc[condition],
     })
   }, [idx, slides, condition, logEvent, viewingStarted, configIndexAtPresentation])
+
+  useEffect(() => {
+    if (!viewingStarted || slides.length === 0) return
+    const n = slides.length
+    const want = new Set([idx, (idx + 1) % n, (idx - 1 + n) % n])
+    for (const i of want) {
+      const sl = slides[i]!
+      if (sl.conditionMediaType[condition] !== 'image') continue
+      const img = new Image()
+      img.src = assetUrl(sl.conditionSrc[condition])
+    }
+  }, [viewingStarted, idx, slides, condition])
 
   const slide = slides[idx]
   const src = assetUrl(slide.conditionSrc[condition])

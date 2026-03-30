@@ -2,17 +2,24 @@ import { assetUrl } from '../lib/assetUrl'
 import { useStudySession } from '../session/StudySessionContext'
 
 /**
- * Preloads assigned-condition stimuli (images/videos) and follow-up (masked) images in the DOM
- * so the browser cache warms up and the first paint is faster when those steps start.
+ * After the first image block, preloads second-block and memory assets in the background
+ * (filler / attention / …) so we do not compete with baseline downloads during the timed view.
  */
 export function StudyMediaPreload() {
-  const { bundle, condition } = useStudySession()
+  const { bundle, condition, phase } = useStudySession()
   const slides = bundle.slides.slides
   const items = bundle.memory.items
 
+  const shouldPreloadHeavy =
+    condition !== null &&
+    phase !== 'intro' &&
+    phase !== 'demographics' &&
+    phase !== 'pre_survey' &&
+    phase !== 'baseline'
+
   return (
     <div className="visually-hidden" aria-hidden>
-      {condition === null
+      {!shouldPreloadHeavy
         ? null
         : slides.map((slide) => {
             const src = assetUrl(slide.conditionSrc[condition])
@@ -20,7 +27,7 @@ export function StudyMediaPreload() {
               return (
                 <video
                   key={`cond-v-${slide.id}`}
-                  preload="auto"
+                  preload="metadata"
                   muted
                   playsInline
                   src={src}
@@ -37,15 +44,18 @@ export function StudyMediaPreload() {
               />
             )
           })}
-      {items.map((it) => (
-        <img
-          key={`mem-${it.slideId}`}
-          src={assetUrl(it.maskedSrc)}
-          alt=""
-          decoding="async"
-          fetchPriority="low"
-        />
-      ))}
+      {shouldPreloadHeavy
+        ? items.map((it) => (
+            <img
+              key={`mem-${it.slideId}`}
+              src={assetUrl(it.maskedSrc)}
+              alt=""
+              decoding="async"
+              fetchPriority="low"
+              loading="lazy"
+            />
+          ))
+        : null}
     </div>
   )
 }
