@@ -99,111 +99,6 @@ function formatParticipantIdForDisplay(answers: Record<string, string | number>)
   return String(raw).trim()
 }
 
-function ExternalPostStudyPhase({
-  formUrl,
-  participantIdDisplay,
-  onComplete,
-  logEvent,
-}: {
-  formUrl: string
-  /** Same value as demographics (for Google Form). */
-  participantIdDisplay: string
-  onComplete: () => void
-  logEvent: (t: string, p?: Record<string, unknown>) => void
-}) {
-  const [surveyOpened, setSurveyOpened] = useState(false)
-  return (
-    <div className="card">
-      <header className="card-header">
-        <h2>Post-study questionnaire</h2>
-        <p className="muted">
-          Please complete the <strong>Team Othee Post-Study Survey</strong> in Google Forms. Use the
-          <strong> Participant ID </strong>
-          shown next to the link below if the form asks for it.
-        </p>
-      </header>
-      <div
-        className="external-survey-actions"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '0.85rem',
-          marginTop: '0.35rem',
-        }}
-      >
-        {participantIdDisplay ? (
-          <p className="external-survey-id" role="status">
-            <span className="muted small">Your Participant ID</span>
-            <strong className="external-survey-id-value">{participantIdDisplay}</strong>
-          </p>
-        ) : (
-          <p className="muted small" role="status">
-            No Participant ID was stored from this session. If the form asks for one, use the same ID you
-            were given by the researcher.
-          </p>
-        )}
-        <a
-          className="btn primary"
-          href={formUrl}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => {
-            setSurveyOpened(true)
-            logEvent('post_study_external_open', {
-              url: formUrl,
-              participantId: participantIdDisplay || undefined,
-            })
-          }}
-        >
-          Open survey (new tab)
-        </a>
-      </div>
-      <p className="muted small" style={{ marginTop: '1rem' }}>
-        After you submit the form, return here and press continue so we can finish saving your session.
-      </p>
-      <div className="btn-row" style={{ marginTop: '1.25rem' }}>
-        <button
-          type="button"
-          className="btn primary"
-          disabled={!surveyOpened}
-          title={
-            surveyOpened
-              ? undefined
-              : 'Open the survey link above first, then return here when you are done.'
-          }
-          onClick={() => {
-            logEvent('post_study_external_continue', {
-              url: formUrl,
-              participantId: participantIdDisplay || undefined,
-            })
-            onComplete()
-          }}
-        >
-          I finished the external survey — continue
-        </button>
-      </div>
-      {!surveyOpened ? (
-        <p className="muted small" style={{ marginTop: '0.5rem' }}>
-          The continue button stays off until you open the survey link (new tab) at least once.
-        </p>
-      ) : null}
-      <DebugSkipBar>
-        <button
-          type="button"
-          className="btn debug-skip"
-          onClick={() => {
-            logEvent('post_study_external_debug_skip', { url: formUrl })
-            onComplete()
-          }}
-        >
-          [Debug] Skip (pretend external survey done)
-        </button>
-      </DebugSkipBar>
-    </div>
-  )
-}
-
 function CountdownFiller({
   seconds,
   onDone,
@@ -286,6 +181,9 @@ export function StudyFlow() {
     () => presentationOrders.memory.map((i) => memoryItems[i]!),
     [memoryItems, presentationOrders.memory],
   )
+
+  /** Memory (external form flow) runs `finalizeStudy` before this screen; in-app post survey defers submit here. */
+  const [submitCompletedBeforeEndScreen, setSubmitCompletedBeforeEndScreen] = useState(false)
 
   if (phase === 'intro') {
     return (
@@ -592,6 +490,7 @@ export function StudyFlow() {
   }
 
   if (phase === 'memory') {
+    const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
     return (
       <MemoryPhase
         title={meta.memoryPhaseTitle}
@@ -600,9 +499,18 @@ export function StudyFlow() {
         configItemIndexAtPresentation={presentationOrders.memory}
         responses={memoryResponses}
         onChange={setMemoryResponses}
-        onComplete={() => {
-          logEvent('phase_enter', { phase: 'post_survey' })
-          setPhase('post_survey')
+        onComplete={async (finalSnapshot) => {
+          if (externalPostUrl) {
+            logEvent('submit_start', {})
+            await finalizeStudy({ memoryResponses: finalSnapshot })
+            logEvent('submit_done', {})
+            setSubmitCompletedBeforeEndScreen(true)
+            logEvent('phase_enter', { phase: 'complete' })
+            setPhase('complete')
+          } else {
+            logEvent('phase_enter', { phase: 'post_survey' })
+            setPhase('post_survey')
+          }
         }}
         logEvent={logEvent}
       />
@@ -610,20 +518,6 @@ export function StudyFlow() {
   }
 
   if (phase === 'post_survey') {
-    const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
-    if (externalPostUrl) {
-      return (
-        <ExternalPostStudyPhase
-          formUrl={externalPostUrl}
-          participantIdDisplay={formatParticipantIdForDisplay(demographicsAnswers)}
-          logEvent={logEvent}
-          onComplete={() => {
-            logEvent('phase_enter', { phase: 'complete' })
-            setPhase('complete')
-          }}
-        />
-      )
-    }
     return (
       <SurveyRunner
         config={bundle.postSurvey}
@@ -632,10 +526,12 @@ export function StudyFlow() {
         logSurveyId="post"
         onLog={logEvent}
         onComplete={() => {
+          setSubmitCompletedBeforeEndScreen(false)
           logEvent('phase_enter', { phase: 'complete' })
           setPhase('complete')
         }}
         onDebugSkipEntireSurvey={() => {
+          setSubmitCompletedBeforeEndScreen(false)
           logEvent('phase_enter', { phase: 'complete' })
           setPhase('complete')
         }}
@@ -644,12 +540,16 @@ export function StudyFlow() {
   }
 
   if (phase === 'complete') {
+    const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
     return (
-      <CompleteScreen
+      <SessionEndScreen
         submitStatus={submitStatus}
         submitMethod={submitMethod}
         finalizeStudy={finalizeStudy}
         logEvent={logEvent}
+        submitCompletedBeforeMount={submitCompletedBeforeEndScreen}
+        externalFormUrl={externalPostUrl || undefined}
+        participantIdDisplay={formatParticipantIdForDisplay(demographicsAnswers)}
       />
     )
   }
@@ -1140,7 +1040,7 @@ function MemoryPhase({
   configItemIndexAtPresentation: number[]
   responses: MemoryResponse[]
   onChange: (r: MemoryResponse[]) => void
-  onComplete: () => void
+  onComplete: (finalResponses: MemoryResponse[]) => void | Promise<void>
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
   const [step, setStep] = useState(0)
@@ -1186,7 +1086,7 @@ function MemoryPhase({
       expectedAnswer: expected,
       isCorrect,
     })
-    if (step + 1 >= items.length) onComplete()
+    if (step + 1 >= items.length) void onComplete(next)
     else setStep((s) => s + 1)
   }
 
@@ -1223,7 +1123,7 @@ function MemoryPhase({
               itemCount: items.length,
               filledWith: 'unsure/4',
             })
-            onComplete()
+            onComplete(stub)
           }}
         >
           [Debug] Skip follow-up block (fill all as Not sure / confidence 4)
@@ -1290,20 +1190,31 @@ function MemoryPhase({
   )
 }
 
-function CompleteScreen({
+function SessionEndScreen({
   submitStatus,
   submitMethod,
   finalizeStudy,
   logEvent,
+  submitCompletedBeforeMount,
+  externalFormUrl,
+  participantIdDisplay,
 }: {
   submitStatus: string | null
   submitMethod: 'supabase' | 'download' | null
-  finalizeStudy: () => Promise<void>
+  finalizeStudy: (opts?: { memoryResponses?: MemoryResponse[] }) => Promise<void>
   logEvent: (t: string, p?: Record<string, unknown>) => void
+  /** True when `finalizeStudy` already ran (e.g. after the last memory trial with an external post form). */
+  submitCompletedBeforeMount: boolean
+  externalFormUrl?: string
+  participantIdDisplay: string
 }) {
-  const [busy, setBusy] = useState(true)
+  const [busy, setBusy] = useState(!submitCompletedBeforeMount)
 
   useEffect(() => {
+    if (submitCompletedBeforeMount) {
+      setBusy(false)
+      return
+    }
     let alive = true
     ;(async () => {
       logEvent('submit_start', {})
@@ -1316,19 +1227,28 @@ function CompleteScreen({
     return () => {
       alive = false
     }
-  }, [finalizeStudy, logEvent])
+  }, [finalizeStudy, logEvent, submitCompletedBeforeMount])
 
   return (
     <div className="card">
       <header className="card-header">
         <h2>Thank you for participating</h2>
-        <p className="muted">
-          <strong>Please stay on this page</strong> until saving finishes and a status line appears below.
-        </p>
-        <p className="muted">
-          When you see <strong>Saved to the server (Supabase)</strong>, your session is complete and you may close the
-          browser.
-        </p>
+        {submitCompletedBeforeMount ? (
+          <p className="muted">
+            Your session responses from this website have been saved. If there is a follow-up questionnaire below,
+            please complete it when you are ready.
+          </p>
+        ) : (
+          <>
+            <p className="muted">
+              <strong>Please stay on this page</strong> until saving finishes and a status line appears below.
+            </p>
+            <p className="muted">
+              When you see <strong>Saved to the server (Supabase)</strong>, your session is complete and you may close
+              the browser (after any external survey below, if applicable).
+            </p>
+          </>
+        )}
         <p className="muted">
           If <strong>a JSON file downloads</strong> instead of a Supabase confirmation, something went wrong with the
           online save—please send that file to the <strong>researcher who recruited you</strong> so your data are not
@@ -1344,6 +1264,68 @@ function CompleteScreen({
           A JSON backup was saved in your browser downloads folder. Please email or otherwise share that file with your
           researcher unless they tell you otherwise.
         </p>
+      ) : null}
+      {externalFormUrl ? (
+        <section className="session-end-external-form" aria-labelledby="session-end-external-heading">
+          <h3 id="session-end-external-heading" className="session-end-external-title">
+            Post-study questionnaire
+          </h3>
+          <p className="muted">
+            Please complete the <strong>Team Othee Post-Study Survey</strong> in Google Forms. Use the
+            <strong> Participant ID </strong>
+            below if the form asks for it.
+          </p>
+          <div
+            className="external-survey-actions"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '0.85rem',
+              marginTop: '0.35rem',
+            }}
+          >
+            {participantIdDisplay ? (
+              <p className="external-survey-id" role="status">
+                <span className="muted small">Your Participant ID</span>
+                <strong className="external-survey-id-value">{participantIdDisplay}</strong>
+              </p>
+            ) : (
+              <p className="muted small" role="status">
+                No Participant ID was stored from this session. If the form asks for one, use the same ID you were given
+                by the researcher.
+              </p>
+            )}
+            <a
+              className="btn primary"
+              href={externalFormUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                logEvent('post_study_external_open', {
+                  url: externalFormUrl,
+                  participantId: participantIdDisplay || undefined,
+                })
+              }}
+            >
+              Open survey (new tab)
+            </a>
+          </div>
+          <p className="muted small" style={{ marginTop: '1rem' }}>
+            After you submit the external form, you may close this tab.
+          </p>
+          <DebugSkipBar>
+            <button
+              type="button"
+              className="btn debug-skip"
+              onClick={() => {
+                logEvent('post_study_external_debug_skip', { url: externalFormUrl })
+              }}
+            >
+              [Debug] Log pretend external survey done
+            </button>
+          </DebugSkipBar>
+        </section>
       ) : null}
       <DebugSkipBar>
         <button

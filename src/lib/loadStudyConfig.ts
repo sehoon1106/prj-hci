@@ -8,6 +8,11 @@ async function fetchJson<T>(name: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/** Lightweight config for `/admin` dashboard copy and condition labels (no full bundle). */
+export async function loadStudyMeta(): Promise<StudyBundle['study']> {
+  return fetchJson<StudyBundle['study']>('study.json')
+}
+
 export async function loadStudyBundle(): Promise<StudyBundle> {
   const [study, filler, demographics, preSurvey, attention2, postSurvey, slides, memory] =
     await Promise.all([

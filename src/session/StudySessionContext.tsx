@@ -45,7 +45,11 @@ interface StudySessionValue {
   eventLog: LogEvent[]
   submitStatus: string | null
   submitMethod: 'supabase' | 'download' | null
-  finalizeStudy: () => Promise<void>
+  /**
+   * Submit session payload to Supabase / download JSON.
+   * Pass `memoryResponses` when the in-memory React state may not yet include the last trial (e.g. right after the final memory Continue click).
+   */
+  finalizeStudy: (opts?: { memoryResponses?: MemoryResponse[] }) => Promise<void>
   /** Maps each phase’s presentation order to indices in `slides.json` / `memory-items.json`. */
   presentationOrders: PresentationOrders
 }
@@ -103,7 +107,7 @@ export function StudySessionProvider({
     })
   }, [])
 
-  const finalizeStudy = useCallback(async () => {
+  const finalizeStudy = useCallback(async (opts?: { memoryResponses?: MemoryResponse[] }) => {
     if (submittedThisRunRef.current) {
       setSubmitStatus(
         (prev) => prev ?? 'This run has already been submitted. Reload the page to start a new session.',
@@ -116,6 +120,10 @@ export function StudySessionProvider({
         'Could not submit: no study option (A/B) was selected. Please reload the page and start again.',
       )
       return
+    }
+    const memoryPayload = opts?.memoryResponses ?? memoryResponses
+    if (opts?.memoryResponses) {
+      setMemoryResponses(opts.memoryResponses)
     }
     let p = submitInflight.get(sessionId)
     if (!p) {
@@ -130,7 +138,7 @@ export function StudySessionProvider({
           preSurvey: preAnswers,
           attention2: attention2Answers,
           postSurvey: postAnswers,
-          memoryResponses,
+          memoryResponses: memoryPayload,
           eventLog: eventLogRef.current,
           fillerStats,
         }

@@ -861,6 +861,18 @@ body {
   margin: 0 0 0.75rem;
 }
 
+.admin-dashboard-lead {
+  margin: 0 0 0.5rem;
+}
+
+.admin-participant-id {
+  font-weight: 600;
+  color: #e2e8f4;
+  max-width: 14rem;
+  word-break: break-word;
+  white-space: normal;
+}
+
 .admin-table-wrap {
   overflow-x: auto;
   border-radius: 10px;
