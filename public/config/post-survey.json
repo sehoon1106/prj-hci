@@ -2,12 +2,5 @@
   "schemaVersion": 1,
   "id": "post",
   "title": "Post-study questionnaire",
-  "pages": [
-    {
-      "id": "unused_external_form",
-      "title": "Not used",
-      "description": "Reserved when using an external post-study form URL in study.json.",
-      "items": []
-    }
-  ]
+  "pages": []
 }

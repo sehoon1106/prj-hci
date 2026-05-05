@@ -2,6 +2,7 @@ export type ConditionKey = 'no_edit' | 'ai_edited_image'
 
 export type StudyPhase =
   | 'intro'
+  | 'group_lobby'
   | 'demographics'
   | 'pre_survey'
   | 'baseline'
@@ -136,6 +137,12 @@ export interface StudyMeta {
   randomizeBaselineSlideOrder?: boolean
   randomizeConditionSlideOrder?: boolean
   randomizeMemoryItemOrder?: boolean
+  groupDiscussion?: {
+    enabled: boolean
+    groupSize: number
+    discussionDurationSeconds: number
+    prompt?: string
+  }
 }
 
 /** `baseline` / `condition`: presentation index → slide index in `slides.json`. `memory` → item index in `memory-items.json`. */
@@ -175,6 +182,14 @@ export interface MemoryResponse {
    * `null` if there is no key, or recall was "unsure" (no binary score).
    */
   isCorrect: boolean | null
+}
+
+export interface DiscussionMessage {
+  questionIndex: number
+  slideId: string
+  anonId: string
+  message: string
+  sentAt: string
 }
 
 export function memoryTrialCorrectness(

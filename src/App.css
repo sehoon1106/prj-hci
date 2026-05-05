@@ -197,6 +197,17 @@ body {
   color: #e8eafd;
 }
 
+.external-survey-warning-strong {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.12rem 0.38rem;
+  border-radius: 6px;
+  background: #5b1f2f;
+  border: 1px solid #a63a53;
+  color: #ffd6df;
+  font-weight: 700;
+}
+
 .btn.choice {
   flex: 1;
   background: #1a2235;
@@ -803,6 +814,60 @@ body {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin: 0.75rem 0 1rem;
+}
+
+.discussion-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-box {
+  border: 1px solid #2a334a;
+  border-radius: 10px;
+  background: #0a0f1a;
+  padding: 0.75rem;
+}
+
+.chat-log {
+  min-height: 12rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid #1c263f;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.chat-msg {
+  margin: 0 0 0.45rem;
+  color: #dbe0ee;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-input-row .survey-input {
+  flex: 1;
+}
+
+.discussion-time-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #151b2e;
+  overflow: hidden;
+  border: 1px solid #2c3754;
+}
+
+.discussion-time-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f7cff, #7b5cff);
+  transition: width 0.25s ease;
 }
 
 .status-msg {

@@ -12,6 +12,7 @@ const submitInflight = new Map<string, Promise<void>>()
 import { createPresentationOrders } from '../lib/presentationOrder'
 import type {
   ConditionKey,
+  DiscussionMessage,
   LogEvent,
   MemoryResponse,
   PresentationOrders,
@@ -52,6 +53,12 @@ interface StudySessionValue {
   finalizeStudy: (opts?: { memoryResponses?: MemoryResponse[] }) => Promise<void>
   /** Maps each phase’s presentation order to indices in `slides.json` / `memory-items.json`. */
   presentationOrders: PresentationOrders
+  groupId: string
+  setGroupId: (v: string) => void
+  anonId: 'P1' | 'P2' | 'P3' | 'P4'
+  setAnonId: (v: 'P1' | 'P2' | 'P3' | 'P4') => void
+  discussionMessages: DiscussionMessage[]
+  addDiscussionMessage: (m: DiscussionMessage) => void
 }
 
 const Ctx = createContext<StudySessionValue | null>(null)
@@ -90,6 +97,9 @@ export function StudySessionProvider({
   const eventLogRef = useRef<LogEvent[]>([])
   const [submitStatus, setSubmitStatus] = useState<string | null>(null)
   const [submitMethod, setSubmitMethod] = useState<'supabase' | 'download' | null>(null)
+  const [groupId, setGroupId] = useState('')
+  const [anonId, setAnonId] = useState<'P1' | 'P2' | 'P3' | 'P4'>('P1')
+  const [discussionMessages, setDiscussionMessages] = useState<DiscussionMessage[]>([])
   const submittedThisRunRef = useRef(false)
 
   const [presentationOrders] = useState(() => createPresentationOrders(bundle))
@@ -141,6 +151,9 @@ export function StudySessionProvider({
           memoryResponses: memoryPayload,
           eventLog: eventLogRef.current,
           fillerStats,
+          groupId: groupId.trim(),
+          anonId,
+          discussionMessages,
         }
         const r = await submitResults(payload)
         submittedThisRunRef.current = true
@@ -167,6 +180,9 @@ export function StudySessionProvider({
     postAnswers,
     memoryResponses,
     fillerStats,
+    groupId,
+    anonId,
+    discussionMessages,
   ])
 
   const value = useMemo(
@@ -197,6 +213,14 @@ export function StudySessionProvider({
       submitMethod,
       finalizeStudy,
       presentationOrders,
+      groupId,
+      setGroupId,
+      anonId,
+      setAnonId,
+      discussionMessages,
+      addDiscussionMessage: (m: DiscussionMessage) => {
+        setDiscussionMessages((prev) => [...prev, m])
+      },
     }),
     [
       bundle,
@@ -217,6 +241,9 @@ export function StudySessionProvider({
       submitMethod,
       finalizeStudy,
       presentationOrders,
+      groupId,
+      anonId,
+      discussionMessages,
     ],
   )
 

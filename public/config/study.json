@@ -28,5 +28,11 @@
   "randomizeBaselineSlideOrder": true,
   "randomizeConditionSlideOrder": true,
   "randomizeMemoryItemOrder": true,
-  "postStudyExternalFormUrl": "https://forms.gle/Zgu9HEKjAk8vajuS8"
+  "postStudyExternalFormUrl": "https://forms.gle/Zgu9HEKjAk8vajuS8",
+  "groupDiscussion": {
+    "enabled": true,
+    "groupSize": 4,
+    "discussionDurationSeconds": 180,
+    "prompt": ""
+  }
 }

@@ -13,6 +13,9 @@ export interface SubmissionPayload {
   memoryResponses: unknown[]
   eventLog: unknown[]
   fillerStats?: Record<string, unknown>
+  groupId?: string
+  anonId?: string
+  discussionMessages?: unknown[]
 }
 
 function downloadJson(data: SubmissionPayload) {
@@ -47,7 +50,14 @@ export async function submitResults(
       post_survey: payload.postSurvey,
       memory_responses: payload.memoryResponses,
       event_log: payload.eventLog,
-      filler_stats: payload.fillerStats ?? {},
+      filler_stats: {
+        ...(payload.fillerStats ?? {}),
+        groupDiscussion: {
+          groupId: payload.groupId ?? '',
+          anonId: payload.anonId ?? '',
+          messages: payload.discussionMessages ?? [],
+        },
+      },
     })
     if (!error) return { ok: true, method: 'supabase' }
     console.error('Supabase insert error:', error)

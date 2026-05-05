@@ -2,12 +2,47 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
+import { GroupLobby, GroupMemoryPhase } from './GroupDiscussionFlow'
 import { assetUrl } from '../lib/assetUrl'
 import { DebugSkipBar } from '../lib/debugUi'
 import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
 
 /** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
 const VIEW_PREP_MIN_WAIT_SECONDS = 5
+const GROUP_MEMBERS = ['P1', 'P2', 'P3', 'P4'] as const
+const EDITED_PAIRS: ReadonlyArray<readonly ['P1' | 'P2' | 'P3' | 'P4', 'P1' | 'P2' | 'P3' | 'P4']> = [
+  ['P1', 'P2'],
+  ['P1', 'P3'],
+  ['P1', 'P4'],
+  ['P2', 'P3'],
+  ['P2', 'P4'],
+  ['P3', 'P4'],
+]
+
+function stableHash(input: string): number {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+function assignGroupCondition(groupId: string, anonId: 'P1' | 'P2' | 'P3' | 'P4') {
+  const pair = EDITED_PAIRS[stableHash(groupId.trim().toLowerCase()) % EDITED_PAIRS.length]!
+  return pair.includes(anonId) ? ('ai_edited_image' as const) : ('no_edit' as const)
+}
+
+function createDeterministicOrder(size: number, seedText: string): number[] {
+  const out = Array.from({ length: size }, (_, i) => i)
+  let seed = stableHash(seedText) || 1
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    const j = seed % (i + 1)
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
 
 function usePrepScreenLock(viewingStarted: boolean) {
   const [secondsLeft, setSecondsLeft] = useState(VIEW_PREP_MIN_WAIT_SECONDS)
@@ -164,9 +199,17 @@ export function StudyFlow() {
     submitMethod,
     finalizeStudy,
     presentationOrders,
+    groupId,
+    setGroupId,
+    anonId,
+    setAnonId,
+    addDiscussionMessage,
   } = useStudySession()
 
   const meta = bundle.study
+  const groupCfg = meta.groupDiscussion
+  const groupModeEnabled = Boolean(groupCfg?.enabled)
+  const [groupModeRequested, setGroupModeRequested] = useState(false)
   const slides = bundle.slides.slides
   const memoryItems = bundle.memory.items
   const orderedBaselineSlides = useMemo(
@@ -180,6 +223,14 @@ export function StudyFlow() {
   const orderedMemoryItems = useMemo(
     () => presentationOrders.memory.map((i) => memoryItems[i]!),
     [memoryItems, presentationOrders.memory],
+  )
+  const groupMemoryOrder = useMemo(() => {
+    if (!groupModeRequested || !groupId.trim()) return presentationOrders.memory
+    return createDeterministicOrder(memoryItems.length, `group-memory:${groupId.trim().toLowerCase()}`)
+  }, [groupModeRequested, groupId, presentationOrders.memory, memoryItems.length])
+  const groupOrderedMemoryItems = useMemo(
+    () => groupMemoryOrder.map((i) => memoryItems[i]!),
+    [groupMemoryOrder, memoryItems],
   )
 
   /** Memory (external form flow) runs `finalizeStudy` before this screen; in-app post survey defers submit here. */
@@ -212,42 +263,54 @@ export function StudyFlow() {
           </section>
         ) : null}
         <p className="consent">{meta.consentText}</p>
-        <fieldset
-          className="intro-condition-fieldset"
-          aria-label="Choose Option A or Option B as you were instructed"
-        >
-          <legend className="visually-hidden">Option A or Option B</legend>
-          <div className="intro-condition-options">
-            <label
-              className={`intro-condition-option ${condition === 'no_edit' ? 'intro-condition-option--active' : ''}`}
-            >
-              <input
-                type="radio"
-                name="assigned_study_option"
-                checked={condition === 'no_edit'}
-                onChange={() => {
-                  setCondition('no_edit')
-                  logEvent('participant_condition_pick', { optionLetter: 'A', conditionKey: 'no_edit' })
-                }}
-              />
-              <span>Option A</span>
-            </label>
-            <label
-              className={`intro-condition-option ${condition === 'ai_edited_image' ? 'intro-condition-option--active' : ''}`}
-            >
-              <input
-                type="radio"
-                name="assigned_study_option"
-                checked={condition === 'ai_edited_image'}
-                onChange={() => {
-                  setCondition('ai_edited_image')
-                  logEvent('participant_condition_pick', { optionLetter: 'B', conditionKey: 'ai_edited_image' })
-                }}
-              />
-              <span>Option B</span>
-            </label>
-          </div>
-        </fieldset>
+        {groupModeEnabled ? (
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={groupModeRequested}
+              onChange={(e) => setGroupModeRequested(e.target.checked)}
+            />
+            <span>Run in group discussion mode</span>
+          </label>
+        ) : null}
+        {!groupModeRequested ? (
+          <fieldset
+            className="intro-condition-fieldset"
+            aria-label="Choose Option A or Option B as you were instructed"
+          >
+            <legend className="visually-hidden">Option A or Option B</legend>
+            <div className="intro-condition-options">
+              <label
+                className={`intro-condition-option ${condition === 'no_edit' ? 'intro-condition-option--active' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="assigned_study_option"
+                  checked={condition === 'no_edit'}
+                  onChange={() => {
+                    setCondition('no_edit')
+                    logEvent('participant_condition_pick', { optionLetter: 'A', conditionKey: 'no_edit' })
+                  }}
+                />
+                <span>Option A</span>
+              </label>
+              <label
+                className={`intro-condition-option ${condition === 'ai_edited_image' ? 'intro-condition-option--active' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="assigned_study_option"
+                  checked={condition === 'ai_edited_image'}
+                  onChange={() => {
+                    setCondition('ai_edited_image')
+                    logEvent('participant_condition_pick', { optionLetter: 'B', conditionKey: 'ai_edited_image' })
+                  }}
+                />
+                <span>Option B</span>
+              </label>
+            </div>
+          </fieldset>
+        ) : null}
         {meta.showConditionKeyToParticipant && condition ? (
           <p className="muted small">
             Assigned condition (debug): {bundle.study.conditionLabels[condition]}
@@ -261,26 +324,80 @@ export function StudyFlow() {
           />
           <span>I have read and agree to the above.</span>
         </label>
+        {groupModeEnabled && groupModeRequested ? (
+          <section className="intro-procedure" aria-label="Group setup">
+            <h2 className="intro-procedure-heading">Group setup</h2>
+            <div className="survey-block">
+              <label className="survey-prompt" htmlFor="group-id">
+                Group ID
+              </label>
+              <input
+                id="group-id"
+                className="survey-input"
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                placeholder="e.g., G1"
+              />
+            </div>
+            <fieldset className="survey-fieldset">
+              <legend className="survey-prompt">Anonymous label</legend>
+              <div className="recall-row">
+                {GROUP_MEMBERS.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`btn choice ${anonId === id ? 'active' : ''}`}
+                    onClick={() => setAnonId(id)}
+                  >
+                    {id}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </section>
+        ) : null}
         <div className="btn-row">
           <button
             type="button"
             className="btn primary"
-            disabled={!consentAccepted || condition === null}
+            disabled={
+              !consentAccepted ||
+              (!groupModeRequested && condition === null) ||
+              (groupModeRequested && !groupId.trim())
+            }
             onClick={() => {
-              if (condition === null) return
+              let startCondition = condition
+              if (groupModeRequested) {
+                startCondition = assignGroupCondition(groupId, anonId)
+                setCondition(startCondition)
+                logEvent('group_condition_auto_assigned', {
+                  groupId,
+                  anonId,
+                  assignedCondition: startCondition,
+                })
+              }
+              if (startCondition === null) return
               logEvent('session_start', {
                 sessionId,
-                condition,
-                conditionLabel: bundle.study.conditionLabels[condition],
+                condition: startCondition,
+                conditionLabel: bundle.study.conditionLabels[startCondition],
                 userAgent: navigator.userAgent,
+                groupModeRequested,
+                groupId: groupModeRequested ? groupId : undefined,
+                anonId: groupModeRequested ? anonId : undefined,
                 presentationOrders: {
                   baseline: [...presentationOrders.baseline],
                   condition: [...presentationOrders.condition],
                   memory: [...presentationOrders.memory],
                 },
               })
-              logEvent('phase_enter', { phase: 'demographics' })
-              setPhase('demographics')
+              if (groupModeRequested) {
+                logEvent('phase_enter', { phase: 'group_lobby', groupId, anonId })
+                setPhase('group_lobby')
+              } else {
+                logEvent('phase_enter', { phase: 'demographics' })
+                setPhase('demographics')
+              }
             }}
           >
             Begin
@@ -314,6 +431,21 @@ export function StudyFlow() {
           </button>
         </DebugSkipBar>
       </div>
+    )
+  }
+
+  if (phase === 'group_lobby' && groupModeRequested) {
+    return (
+      <GroupLobby
+        groupId={groupId}
+        anonId={anonId}
+        groupSize={groupCfg?.groupSize ?? 4}
+        onStart={() => {
+          logEvent('group_lobby_start', { groupId, anonId })
+          logEvent('phase_enter', { phase: 'demographics' })
+          setPhase('demographics')
+        }}
+      />
     )
   }
 
@@ -491,6 +623,99 @@ export function StudyFlow() {
 
   if (phase === 'memory') {
     const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
+    if (groupModeRequested) {
+      return (
+        <GroupMemoryPhase
+          title={meta.memoryPhaseTitle}
+          instructions={meta.memoryPhaseInstructions}
+          items={groupOrderedMemoryItems}
+          configItemIndexAtPresentation={groupMemoryOrder}
+          groupId={groupId}
+          anonId={anonId}
+          groupSize={groupCfg?.groupSize ?? 4}
+          durationSec={groupCfg?.discussionDurationSeconds ?? 180}
+          prompt={groupCfg?.prompt}
+          responses={memoryResponses}
+          onLog={logEvent}
+          onMessagePersist={addDiscussionMessage}
+          onAnswer={(step, recall, confidence) => {
+            const item = groupOrderedMemoryItems[step]!
+            const expected = item.expectedAnswer
+            const isCorrect = memoryTrialCorrectness(recall, expected)
+            const configItemIndex = groupMemoryOrder[step]!
+            const next = [...memoryResponses]
+            next[step] = {
+              itemIndex: configItemIndex,
+              presentationIndex: step,
+              slideId: item.slideId,
+              recall,
+              confidence,
+              ...(expected !== undefined ? { expectedAnswer: expected } : {}),
+              isCorrect,
+            }
+            setMemoryResponses(next)
+            logEvent('memory_answer', {
+              step,
+              presentationIndex: step,
+              configItemIndex,
+              slideId: item.slideId,
+              recall,
+              confidence,
+              expectedAnswer: expected,
+              isCorrect,
+              groupMode: true,
+            })
+          }}
+          onDebugSkip={() => {
+            const now = new Date().toISOString()
+            const fake = groupOrderedMemoryItems.map((it, i) => {
+              const expected = it.expectedAnswer
+              const recall = 'unsure' as const
+              const configItemIndex = groupMemoryOrder[i]!
+              return {
+                itemIndex: configItemIndex,
+                presentationIndex: i,
+                slideId: it.slideId,
+                recall,
+                confidence: 4,
+                ...(expected !== undefined ? { expectedAnswer: expected } : {}),
+                isCorrect: memoryTrialCorrectness(recall, expected),
+              }
+            })
+            setMemoryResponses(fake)
+            groupOrderedMemoryItems.forEach((it, i) => {
+              addDiscussionMessage({
+                questionIndex: i,
+                slideId: it.slideId,
+                anonId,
+                message: `[debug] synthetic chat for item ${i + 1}`,
+                sentAt: now,
+              })
+            })
+            logEvent('group_memory_debug_skip', {
+              itemCount: groupOrderedMemoryItems.length,
+              filledWith: 'unsure/4',
+              fakeChatPerItem: true,
+            })
+            logEvent('phase_enter', { phase: 'post_survey' })
+            setPhase('post_survey')
+          }}
+          onComplete={async () => {
+            if (externalPostUrl) {
+              logEvent('submit_start', {})
+              await finalizeStudy()
+              logEvent('submit_done', {})
+              setSubmitCompletedBeforeEndScreen(true)
+              logEvent('phase_enter', { phase: 'complete' })
+              setPhase('complete')
+            } else {
+              logEvent('phase_enter', { phase: 'post_survey' })
+              setPhase('post_survey')
+            }
+          }}
+        />
+      )
+    }
     return (
       <MemoryPhase
         title={meta.memoryPhaseTitle}
@@ -518,6 +743,14 @@ export function StudyFlow() {
   }
 
   if (phase === 'post_survey') {
+    const hasPostSurveyQuestions = bundle.postSurvey.pages.some((page) => page.items.length > 0)
+    if (!hasPostSurveyQuestions) {
+      setSubmitCompletedBeforeEndScreen(false)
+      logEvent('post_survey_auto_skip_empty', {})
+      logEvent('phase_enter', { phase: 'complete' })
+      setPhase('complete')
+      return null
+    }
     return (
       <SurveyRunner
         config={bundle.postSurvey}
@@ -1312,7 +1545,8 @@ function SessionEndScreen({
             </a>
           </div>
           <p className="muted small" style={{ marginTop: '1rem' }}>
-            After you submit the external form, you may close this tab.
+            <span className="external-survey-warning-strong">Important:</span> Do not close this tab until
+            you finish and submit the Google Form. You may close this tab only after form submission.
           </p>
           <DebugSkipBar>
             <button
