@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import PacmanImport from 'react-pacman'
 import { getSupabaseClient } from '../lib/supabaseClient'
 import { fetchPacmanLeaderboard, type PacmanLeaderboardEntry } from '../lib/pacmanLeaderboard'
+import { GroupPhaseStartGate } from './GroupDiscussionFlow'
 
 type PacmanProps = { gridSize?: number; onEnd?: () => void }
 
@@ -47,10 +48,18 @@ export function FillerPacMan({
   durationSeconds,
   onDone,
   onStats,
+  groupSync,
 }: {
   durationSeconds: number
   onDone: () => void
   onStats: (s: PacmanFillerStats) => void
+  groupSync?: {
+    groupId: string
+    anonId: 'P1' | 'P2' | 'P3' | 'P4'
+    groupSize: number
+    phaseKey: string
+    logEvent: (t: string, p?: Record<string, unknown>) => void
+  }
 }) {
   const [started, setStarted] = useState(false)
   const [remaining, setRemaining] = useState(durationSeconds)
@@ -363,13 +372,31 @@ export function FillerPacMan({
       </div>
 
       {!started ? (
-        <button
-          type="button"
-          className="btn primary pac-start"
-          onClick={() => setStarted(true)}
-        >
-          Start game
-        </button>
+        groupSync ? (
+          <GroupPhaseStartGate
+            groupId={groupSync.groupId}
+            anonId={groupSync.anonId}
+            groupSize={groupSync.groupSize}
+            phaseKey={groupSync.phaseKey}
+            buttonLabel="Start game"
+            onStart={() => {
+              groupSync.logEvent('group_phase_start', {
+                phase: 'filler',
+                groupId: groupSync.groupId,
+                anonId: groupSync.anonId,
+              })
+              setStarted(true)
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="btn primary pac-start"
+            onClick={() => setStarted(true)}
+          >
+            Start game
+          </button>
+        )
       ) : (
         <>
           <div className="pacman-library-mount">

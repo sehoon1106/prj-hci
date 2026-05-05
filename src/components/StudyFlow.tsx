@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
-import { GroupLobby, GroupMemoryPhase } from './GroupDiscussionFlow'
+import { GroupLobby, GroupMemoryPhase, GroupPhaseStartGate } from './GroupDiscussionFlow'
 import { assetUrl } from '../lib/assetUrl'
 import { DebugSkipBar } from '../lib/debugUi'
 import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
@@ -137,9 +137,17 @@ function formatParticipantIdForDisplay(answers: Record<string, string | number>)
 function CountdownFiller({
   seconds,
   onDone,
+  groupSync,
 }: {
   seconds: number
   onDone: () => void
+  groupSync?: {
+    groupId: string
+    anonId: 'P1' | 'P2' | 'P3' | 'P4'
+    groupSize: number
+    phaseKey: string
+    logEvent: (t: string, p?: Record<string, unknown>) => void
+  }
 }) {
   const [left, setLeft] = useState(seconds)
   const [started, setStarted] = useState(false)
@@ -159,9 +167,27 @@ function CountdownFiller({
   if (!started) {
     return (
       <div className="btn-row" style={{ justifyContent: 'center' }}>
-        <button type="button" className="btn primary" onClick={() => setStarted(true)}>
-          Start timer
-        </button>
+        {groupSync ? (
+          <GroupPhaseStartGate
+            groupId={groupSync.groupId}
+            anonId={groupSync.anonId}
+            groupSize={groupSync.groupSize}
+            phaseKey={groupSync.phaseKey}
+            buttonLabel="Start timer"
+            onStart={() => {
+              groupSync.logEvent('group_phase_start', {
+                phase: 'filler',
+                groupId: groupSync.groupId,
+                anonId: groupSync.anonId,
+              })
+              setStarted(true)
+            }}
+          />
+        ) : (
+          <button type="button" className="btn primary" onClick={() => setStarted(true)}>
+            Start timer
+          </button>
+        )}
       </div>
     )
   }
@@ -210,6 +236,7 @@ export function StudyFlow() {
   const groupCfg = meta.groupDiscussion
   const groupModeEnabled = Boolean(groupCfg?.enabled)
   const [groupModeRequested, setGroupModeRequested] = useState(false)
+  const [groupMemoryStarted, setGroupMemoryStarted] = useState(false)
   const slides = bundle.slides.slides
   const memoryItems = bundle.memory.items
   const orderedBaselineSlides = useMemo(
@@ -499,6 +526,17 @@ export function StudyFlow() {
         slides={orderedBaselineSlides}
         configIndexAtPresentation={presentationOrders.baseline}
         durationSec={meta.baselineDurationSeconds}
+        groupSync={
+          groupModeRequested
+            ? {
+                groupId,
+                anonId,
+                groupSize: groupCfg?.groupSize ?? 4,
+                phaseKey: 'baseline',
+                logEvent,
+              }
+            : undefined
+        }
         onComplete={() => {
           logEvent('phase_enter', { phase: 'filler' })
           setPhase('filler')
@@ -545,6 +583,17 @@ export function StudyFlow() {
         {bundle.filler.type === 'pacman' ? (
           <FillerPacMan
             durationSeconds={bundle.filler.minDurationSeconds}
+            groupSync={
+              groupModeRequested
+                ? {
+                    groupId,
+                    anonId,
+                    groupSize: groupCfg?.groupSize ?? 4,
+                    phaseKey: 'filler',
+                    logEvent,
+                  }
+                : undefined
+            }
             onStats={(s) => {
               setFillerStats(s as unknown as Record<string, unknown>)
               logEvent('filler_complete', s as unknown as Record<string, unknown>)
@@ -557,6 +606,17 @@ export function StudyFlow() {
         ) : (
           <CountdownFiller
             seconds={bundle.filler.minDurationSeconds}
+            groupSync={
+              groupModeRequested
+                ? {
+                    groupId,
+                    anonId,
+                    groupSize: groupCfg?.groupSize ?? 4,
+                    phaseKey: 'filler',
+                    logEvent,
+                  }
+                : undefined
+            }
             onDone={() => {
               setFillerStats({ type: bundle.filler.type, durationSeconds: bundle.filler.minDurationSeconds })
               logEvent('filler_complete', { type: bundle.filler.type })
@@ -612,6 +672,17 @@ export function StudyFlow() {
         configIndexAtPresentation={presentationOrders.condition}
         condition={conditionKey}
         durationSec={meta.conditionDurationSeconds}
+        groupSync={
+          groupModeRequested
+            ? {
+                groupId,
+                anonId,
+                groupSize: groupCfg?.groupSize ?? 4,
+                phaseKey: 'condition',
+                logEvent,
+              }
+            : undefined
+        }
         onComplete={() => {
           logEvent('phase_enter', { phase: 'memory' })
           setPhase('memory')
@@ -624,6 +695,31 @@ export function StudyFlow() {
   if (phase === 'memory') {
     const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
     if (groupModeRequested) {
+      if (!groupMemoryStarted) {
+        return (
+          <div className="card">
+            <header className="card-header">
+              <h2>{meta.memoryPhaseTitle}</h2>
+              <p className="muted">{meta.memoryPhaseInstructions}</p>
+              <p className="muted small">
+                You will discuss each masked image for {groupCfg?.discussionDurationSeconds ?? 180} seconds, then
+                submit your answer individually. All participants must press start.
+              </p>
+            </header>
+            <GroupPhaseStartGate
+              groupId={groupId}
+              anonId={anonId}
+              groupSize={groupCfg?.groupSize ?? 4}
+              phaseKey="memory"
+              buttonLabel="Start memory test"
+              onStart={() => {
+                logEvent('group_phase_start', { phase: 'memory', groupId, anonId })
+                setGroupMemoryStarted(true)
+              }}
+            />
+          </div>
+        )
+      }
       return (
         <GroupMemoryPhase
           title={meta.memoryPhaseTitle}
@@ -698,6 +794,7 @@ export function StudyFlow() {
               fakeChatPerItem: true,
             })
             logEvent('phase_enter', { phase: 'post_survey' })
+            setGroupMemoryStarted(false)
             setPhase('post_survey')
           }}
           onComplete={async () => {
@@ -707,9 +804,11 @@ export function StudyFlow() {
               logEvent('submit_done', {})
               setSubmitCompletedBeforeEndScreen(true)
               logEvent('phase_enter', { phase: 'complete' })
+              setGroupMemoryStarted(false)
               setPhase('complete')
             } else {
               logEvent('phase_enter', { phase: 'post_survey' })
+              setGroupMemoryStarted(false)
               setPhase('post_survey')
             }
           }}
@@ -796,6 +895,7 @@ function BaselinePhase({
   slides,
   configIndexAtPresentation,
   durationSec,
+  groupSync,
   onComplete,
   logEvent,
 }: {
@@ -805,6 +905,13 @@ function BaselinePhase({
   /** Same length as `slides`: config row index in `slides.json` for each presentation position. */
   configIndexAtPresentation: number[]
   durationSec: number
+  groupSync?: {
+    groupId: string
+    anonId: 'P1' | 'P2' | 'P3' | 'P4'
+    groupSize: number
+    phaseKey: string
+    logEvent: (t: string, p?: Record<string, unknown>) => void
+  }
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
@@ -912,27 +1019,56 @@ function BaselinePhase({
             <strong>{prepLockSecondsLeft}</strong>s.
           </p>
         ) : null}
-        <div className="btn-row" style={{ justifyContent: 'center' }}>
-          <button
-            type="button"
-            className="btn primary"
+        {groupSync ? (
+          <GroupPhaseStartGate
+            groupId={groupSync.groupId}
+            anonId={groupSync.anonId}
+            groupSize={groupSync.groupSize}
+            phaseKey={groupSync.phaseKey}
+            buttonLabel="Start viewing images"
             disabled={prepLockSecondsLeft > 0}
-            title={
+            disabledReason={
               prepLockSecondsLeft > 0
-                ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                ? `Please read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
                 : undefined
             }
-            onClick={() => {
+            onStart={() => {
+              groupSync.logEvent('group_phase_start', {
+                phase: 'baseline',
+                groupId: groupSync.groupId,
+                anonId: groupSync.anonId,
+              })
               logEvent('baseline_viewing_prepare_ack', {
                 slideCount: slides.length,
                 durationSec,
+                groupSync: true,
               })
               setViewingStarted(true)
             }}
-          >
-            Start viewing images
-          </button>
-        </div>
+          />
+        ) : (
+          <div className="btn-row" style={{ justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={prepLockSecondsLeft > 0}
+              title={
+                prepLockSecondsLeft > 0
+                  ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                  : undefined
+              }
+              onClick={() => {
+                logEvent('baseline_viewing_prepare_ack', {
+                  slideCount: slides.length,
+                  durationSec,
+                })
+                setViewingStarted(true)
+              }}
+            >
+              Start viewing images
+            </button>
+          </div>
+        )}
         <DebugSkipBar>
           <button
             type="button"
@@ -1035,6 +1171,7 @@ function ConditionPhase({
   configIndexAtPresentation,
   condition,
   durationSec,
+  groupSync,
   onComplete,
   logEvent,
 }: {
@@ -1044,6 +1181,13 @@ function ConditionPhase({
   configIndexAtPresentation: number[]
   condition: import('../types/study').ConditionKey
   durationSec: number
+  groupSync?: {
+    groupId: string
+    anonId: 'P1' | 'P2' | 'P3' | 'P4'
+    groupSize: number
+    phaseKey: string
+    logEvent: (t: string, p?: Record<string, unknown>) => void
+  }
   onComplete: () => void
   logEvent: (t: string, p?: Record<string, unknown>) => void
 }) {
@@ -1142,28 +1286,58 @@ function ConditionPhase({
             <strong>{prepLockSecondsLeft}</strong>s.
           </p>
         ) : null}
-        <div className="btn-row" style={{ justifyContent: 'center' }}>
-          <button
-            type="button"
-            className="btn primary"
+        {groupSync ? (
+          <GroupPhaseStartGate
+            groupId={groupSync.groupId}
+            anonId={groupSync.anonId}
+            groupSize={groupSync.groupSize}
+            phaseKey={groupSync.phaseKey}
+            buttonLabel="Start viewing images"
             disabled={prepLockSecondsLeft > 0}
-            title={
+            disabledReason={
               prepLockSecondsLeft > 0
-                ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                ? `Please read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
                 : undefined
             }
-            onClick={() => {
+            onStart={() => {
+              groupSync.logEvent('group_phase_start', {
+                phase: 'condition',
+                groupId: groupSync.groupId,
+                anonId: groupSync.anonId,
+              })
               logEvent('condition_viewing_prepare_ack', {
                 slideCount: slides.length,
                 durationSec,
                 condition,
+                groupSync: true,
               })
               setViewingStarted(true)
             }}
-          >
-            Start viewing images
-          </button>
-        </div>
+          />
+        ) : (
+          <div className="btn-row" style={{ justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={prepLockSecondsLeft > 0}
+              title={
+                prepLockSecondsLeft > 0
+                  ? `Read the instructions. Unlocks in ${prepLockSecondsLeft}s.`
+                  : undefined
+              }
+              onClick={() => {
+                logEvent('condition_viewing_prepare_ack', {
+                  slideCount: slides.length,
+                  durationSec,
+                  condition,
+                })
+                setViewingStarted(true)
+              }}
+            >
+              Start viewing images
+            </button>
+          </div>
+        )}
         <DebugSkipBar>
           <button
             type="button"

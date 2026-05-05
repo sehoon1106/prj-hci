@@ -7,6 +7,107 @@ import { DebugSkipBar } from '../lib/debugUi'
 
 type AnonId = 'P1' | 'P2' | 'P3' | 'P4'
 
+export function GroupPhaseStartGate({
+  groupId,
+  anonId,
+  groupSize,
+  phaseKey,
+  buttonLabel,
+  waitingLabel,
+  disabled,
+  disabledReason,
+  onStart,
+}: {
+  groupId: string
+  anonId: AnonId
+  groupSize: number
+  phaseKey: string
+  buttonLabel: string
+  waitingLabel?: string
+  disabled?: boolean
+  disabledReason?: string
+  onStart: () => void
+}) {
+  const [ready, setReady] = useState(false)
+  const [readyIds, setReadyIds] = useState<string[]>([])
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    const client = getSupabaseClient()
+    if (!client || !groupId.trim()) return
+    const channel = client.channel(`phase-gate:${groupId.trim()}:${phaseKey}`, {
+      config: { presence: { key: `${groupId.trim()}-${phaseKey}-${anonId}` } },
+    })
+    channelRef.current = channel
+    const triggerStart = () => {
+      if (startedRef.current) return
+      startedRef.current = true
+      onStart()
+    }
+    const sync = () => {
+      const presence = channel.presenceState<Record<string, unknown>>()
+      const ids = Object.values(presence)
+        .flat()
+        .filter((entry) => Boolean(entry.ready))
+        .map((entry) => String(entry.anonId ?? ''))
+        .filter(Boolean)
+      const uniqueReady = Array.from(new Set(ids)).sort()
+      setReadyIds(uniqueReady)
+      if (!startedRef.current && uniqueReady.length >= groupSize) {
+        void channel.send({
+          type: 'broadcast',
+          event: 'phase_start',
+          payload: { phaseKey, at: new Date().toISOString() },
+        })
+        triggerStart()
+      }
+    }
+    channel
+      .on('broadcast', { event: 'phase_start' }, () => triggerStart())
+      .on('presence', { event: 'sync' }, sync)
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            anonId,
+            ready: false,
+            phaseKey,
+            joinedAt: new Date().toISOString(),
+          })
+        }
+      })
+    return () => {
+      void channel.untrack()
+      void client.removeChannel(channel)
+    }
+  }, [anonId, groupId, groupSize, onStart, phaseKey])
+
+  return (
+    <>
+      <p className="muted small">Ready: {readyIds.length} / {groupSize}</p>
+      {disabled && disabledReason ? <p className="muted small">{disabledReason}</p> : null}
+      <div className="btn-row" style={{ justifyContent: 'center' }}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={Boolean(disabled) || ready}
+          onClick={async () => {
+            setReady(true)
+            await channelRef.current?.track({
+              anonId,
+              ready: true,
+              phaseKey,
+              readyAt: new Date().toISOString(),
+            })
+          }}
+        >
+          {ready ? waitingLabel ?? 'Waiting for others…' : buttonLabel}
+        </button>
+      </div>
+    </>
+  )
+}
+
 export function GroupLobby({
   groupId,
   anonId,
@@ -152,6 +253,8 @@ export function GroupMemoryPhase({
   const [submittedThisStep, setSubmittedThisStep] = useState(false)
   const [advancePending, setAdvancePending] = useState(false)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const sentAdvanceForStepRef = useRef<number | null>(null)
+  const appliedAdvanceForStepRef = useRef<number | null>(null)
   const item = items[step]
   const total = durationSec > 0 ? durationSec : 1
   const progressPct = Math.min(100, Math.max(0, Math.round(((total - left) / total) * 100)))
@@ -163,6 +266,8 @@ export function GroupMemoryPhase({
     setAnsweredIds([])
     setSubmittedThisStep(false)
     setAdvancePending(false)
+    sentAdvanceForStepRef.current = null
+    appliedAdvanceForStepRef.current = null
     setRecall(responses[step]?.recall ?? null)
     setConfidence(responses[step]?.confidence ?? null)
   }, [durationSec, step])
@@ -195,8 +300,12 @@ export function GroupMemoryPhase({
         if (!id) return
         setAnsweredIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
       })
-      .on('broadcast', { event: 'advance_step' }, () => {
-        if (advancePending) return
+      .on('broadcast', { event: 'advance_step' }, ({ payload }) => {
+        const typedPayload = payload as Record<string, unknown> | undefined
+        const forStep = Number(typedPayload?.step ?? -1)
+        if (forStep !== step) return
+        if (appliedAdvanceForStepRef.current === step) return
+        appliedAdvanceForStepRef.current = step
         setAdvancePending(true)
       })
       .subscribe((status) => {
@@ -213,11 +322,16 @@ export function GroupMemoryPhase({
     return () => {
       void client.removeChannel(channel)
     }
-  }, [anonId, groupId, item.slideId, onLog, phase, step, advancePending, configItemIndexAtPresentation])
+  }, [anonId, groupId, item.slideId, onLog, step, configItemIndexAtPresentation])
 
   useEffect(() => {
     if (!submittedThisStep || phase !== 'answer' || advancePending) return
     if (answeredIds.length < groupSize) return
+    const coordinator = [...answeredIds].sort()[0]
+    if (anonId !== coordinator) return
+    if (sentAdvanceForStepRef.current === step) return
+    sentAdvanceForStepRef.current = step
+    appliedAdvanceForStepRef.current = step
     setAdvancePending(true)
     void channelRef.current?.send({
       type: 'broadcast',
@@ -228,14 +342,16 @@ export function GroupMemoryPhase({
         at: new Date().toISOString(),
       },
     })
-  }, [submittedThisStep, phase, advancePending, answeredIds.length, groupSize, step])
+  }, [submittedThisStep, phase, advancePending, answeredIds, groupSize, step, anonId])
 
   useEffect(() => {
     if (!advancePending) return
     if (step + 1 >= items.length) {
+      setAdvancePending(false)
       onComplete()
       return
     }
+    setAdvancePending(false)
     setStep((s) => s + 1)
   }, [advancePending, items.length, onComplete, step])
 
@@ -299,6 +415,26 @@ export function GroupMemoryPhase({
             <div className="discussion-time-fill" style={{ width: `${progressPct}%` }} />
           </div>
           <ChatBox messages={messages} onSend={sendMessage} />
+          <DebugSkipBar>
+            <button
+              type="button"
+              className="btn debug-skip"
+              onClick={() => {
+                onMessagePersist({
+                  questionIndex: step,
+                  slideId: item.slideId,
+                  anonId,
+                  message: '[debug] skipped discussion timer',
+                  sentAt: new Date().toISOString(),
+                })
+                onLog('group_discussion_debug_skip', { step, slideId: item.slideId, anonId })
+                setLeft(0)
+                setPhase('answer')
+              }}
+            >
+              [Debug] Skip this discussion
+            </button>
+          </DebugSkipBar>
         </div>
       ) : (
         <>
