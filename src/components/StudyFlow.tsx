@@ -1,23 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useStudySession } from '../session/StudySessionContext'
 import { SurveyRunner } from './SurveyRunner'
 import { FillerPacMan } from './FillerPacMan'
-import { GroupLobby, GroupMemoryPhase, GroupPhaseStartGate } from './GroupDiscussionFlow'
+import {
+  GroupLobby,
+  GroupMemoryPhase,
+  GroupPhaseStartGate,
+  GroupSoloMemoryWaitGate,
+} from './GroupDiscussionFlow'
 import { assetUrl } from '../lib/assetUrl'
-import { DebugSkipBar } from '../lib/debugUi'
-import { memoryTrialCorrectness, type MemoryResponse } from '../types/study'
+import { memoryTrialCorrectness, type MemoryItemDef, type MemoryResponse } from '../types/study'
 
 /** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
 const VIEW_PREP_MIN_WAIT_SECONDS = 5
 const GROUP_MEMBERS = ['P1', 'P2', 'P3', 'P4'] as const
-const EDITED_PAIRS: ReadonlyArray<readonly ['P1' | 'P2' | 'P3' | 'P4', 'P1' | 'P2' | 'P3' | 'P4']> = [
-  ['P1', 'P2'],
-  ['P1', 'P3'],
-  ['P1', 'P4'],
-  ['P2', 'P3'],
-  ['P2', 'P4'],
-  ['P3', 'P4'],
-]
+
+type GroupMemorySubphase =
+  | 'solo_gate'
+  | 'solo'
+  | 'solo_wait'
+  | 'discussion_gate'
+  | 'discussion'
 
 function stableHash(input: string): number {
   let h = 2166136261
@@ -29,8 +32,8 @@ function stableHash(input: string): number {
 }
 
 function assignGroupCondition(groupId: string, anonId: 'P1' | 'P2' | 'P3' | 'P4') {
-  const pair = EDITED_PAIRS[stableHash(groupId.trim().toLowerCase()) % EDITED_PAIRS.length]!
-  return pair.includes(anonId) ? ('ai_edited_image' as const) : ('no_edit' as const)
+  void groupId
+  return anonId === 'P3' || anonId === 'P4' ? ('ai_edited_image' as const) : ('no_edit' as const)
 }
 
 function createDeterministicOrder(size: number, seedText: string): number[] {
@@ -219,6 +222,10 @@ export function StudyFlow() {
     setPostAnswers,
     memoryResponses,
     setMemoryResponses,
+    memoryResponsesPreDiscussion,
+    setMemoryResponsesPreDiscussion,
+    discussionMessages,
+    clearDiscussionLog,
     setFillerStats,
     logEvent,
     submitStatus,
@@ -236,7 +243,7 @@ export function StudyFlow() {
   const groupCfg = meta.groupDiscussion
   const groupModeEnabled = Boolean(groupCfg?.enabled)
   const [groupModeRequested, setGroupModeRequested] = useState(false)
-  const [groupMemoryStarted, setGroupMemoryStarted] = useState(false)
+  const [groupMemorySubphase, setGroupMemorySubphase] = useState<GroupMemorySubphase>('solo_gate')
   const slides = bundle.slides.slides
   const memoryItems = bundle.memory.items
   const orderedBaselineSlides = useMemo(
@@ -259,12 +266,252 @@ export function StudyFlow() {
     () => groupMemoryOrder.map((i) => memoryItems[i]!),
     [groupMemoryOrder, memoryItems],
   )
+  const fillMissingMemoryResponses = (
+    existing: MemoryResponse[],
+    itemsForPhase: MemoryItemDef[],
+    order: number[],
+  ): MemoryResponse[] => {
+    const next = [...existing]
+    for (let i = 0; i < itemsForPhase.length; i += 1) {
+      if (next[i]) continue
+      const it = itemsForPhase[i]!
+      const expected = it.expectedAnswer
+      next[i] = {
+        itemIndex: order[i]!,
+        presentationIndex: i,
+        slideId: it.slideId,
+        recall: 'unsure',
+        confidence: 4,
+        ...(expected !== undefined ? { expectedAnswer: expected } : {}),
+        isCorrect: memoryTrialCorrectness('unsure', expected),
+      }
+    }
+    return next
+  }
+  const fillMissingDiscussionLogs = (
+    itemsForPhase: MemoryItemDef[],
+    participantId?: string,
+  ): { autoFilledChats: number } => {
+    const now = new Date().toISOString()
+    let autoFilledChats = 0
+    for (let i = 0; i < itemsForPhase.length; i += 1) {
+      const it = itemsForPhase[i]!
+      const hasDiscussionForQuestion = discussionMessages.some((m) => m.questionIndex === i)
+      if (hasDiscussionForQuestion) continue
+      addDiscussionMessage({
+        questionIndex: i,
+        slideId: it.slideId,
+        anonId,
+        participantId,
+        message: `[debug] synthetic chat for item ${i + 1}`,
+        sentAt: now,
+      })
+      autoFilledChats += 1
+    }
+    return { autoFilledChats }
+  }
 
   /** Memory (external form flow) runs `finalizeStudy` before this screen; in-app post survey defers submit here. */
   const [submitCompletedBeforeEndScreen, setSubmitCompletedBeforeEndScreen] = useState(false)
+  const [debugOverlayOpen, setDebugOverlayOpen] = useState(true)
+  const [discussionSkipSignal, setDiscussionSkipSignal] = useState(0)
+  const canJumpToDiscussionGate = groupModeRequested && Boolean(groupId.trim())
+  const canSkipCurrentDiscussion =
+    groupModeRequested && phase === 'memory' && groupMemorySubphase === 'discussion'
+  const ensureDebugCondition = () => {
+    if (condition !== null) return condition
+    setCondition('no_edit')
+    return 'no_edit' as const
+  }
+  const completeToPostSurveyWithFill = () => {
+    if (groupModeRequested) {
+      const participantId = formatParticipantIdForDisplay(demographicsAnswers) || undefined
+      const prePrev = memoryResponsesPreDiscussion.filter(Boolean).length
+      const postPrev = memoryResponses.filter(Boolean).length
+      const preFilled = fillMissingMemoryResponses(
+        memoryResponsesPreDiscussion,
+        groupOrderedMemoryItems,
+        groupMemoryOrder,
+      )
+      const postFilled = fillMissingMemoryResponses(memoryResponses, groupOrderedMemoryItems, groupMemoryOrder)
+      const preAdded = preFilled.filter(Boolean).length - prePrev
+      const postAdded = postFilled.filter(Boolean).length - postPrev
+      const { autoFilledChats } = fillMissingDiscussionLogs(groupOrderedMemoryItems, participantId)
+      if (preAdded > 0) setMemoryResponsesPreDiscussion(preFilled)
+      if (postAdded > 0) setMemoryResponses(postFilled)
+      logEvent('group_memory_overlay_skip_to_post', {
+        fromPhase: phase,
+        fromSubphase: groupMemorySubphase,
+        autoFilledPreResponses: Math.max(0, preAdded),
+        autoFilledPostResponses: Math.max(0, postAdded),
+        autoFilledChats,
+      })
+      setGroupMemorySubphase('solo_gate')
+    } else {
+      const prev = memoryResponses.filter(Boolean).length
+      const filled = fillMissingMemoryResponses(memoryResponses, orderedMemoryItems, presentationOrders.memory)
+      const added = filled.filter(Boolean).length - prev
+      if (added > 0) setMemoryResponses(filled)
+      logEvent('memory_overlay_skip_to_post', { fromPhase: phase, autoFilledResponses: Math.max(0, added) })
+    }
+    logEvent('phase_enter', { phase: 'post_survey', via: 'overlay_debug_skip' })
+    setPhase('post_survey')
+  }
+  const jumpToStudyPhase = (
+    target:
+      | 'group_lobby'
+      | 'demographics'
+      | 'pre_survey'
+      | 'baseline'
+      | 'filler'
+      | 'attention2'
+      | 'condition'
+      | 'memory_solo_gate'
+      | 'memory_discussion_gate'
+      | 'post_survey'
+      | 'complete',
+  ) => {
+    setConsentAccepted(true)
+    if (target !== 'group_lobby') ensureDebugCondition()
+    if (target === 'group_lobby') {
+      if (!groupModeRequested || !groupId.trim()) return
+      setPhase('group_lobby')
+      logEvent('debug_jump', { to: 'group_lobby' })
+      return
+    }
+    if (target === 'memory_solo_gate') {
+      setGroupMemorySubphase('solo_gate')
+      setPhase('memory')
+      logEvent('debug_jump', { to: 'memory', subphase: 'solo_gate' })
+      return
+    }
+    if (target === 'filler') {
+      setFillerStats({
+        type: bundle.filler.type,
+        durationSeconds: bundle.filler.minDurationSeconds,
+        debugSkip: true,
+        viaOverlay: true,
+      })
+    }
+    if (target === 'memory_discussion_gate') {
+      jumpToDiscussionGate()
+      return
+    }
+    if (target === 'complete') {
+      setSubmitCompletedBeforeEndScreen(false)
+      setPhase('complete')
+      logEvent('debug_jump', { to: 'complete' })
+      return
+    }
+    if (target === 'post_survey') {
+      completeToPostSurveyWithFill()
+      return
+    }
+    const targetPhase = target as Exclude<typeof target, 'memory_solo_gate' | 'memory_discussion_gate' | 'complete'>
+    setPhase(targetPhase)
+    logEvent('debug_jump', { to: targetPhase })
+  }
+  const jumpToDiscussionGate = () => {
+    if (!canJumpToDiscussionGate) return
+    const prevAnswered = memoryResponsesPreDiscussion.filter(Boolean).length
+    const filledPre = fillMissingMemoryResponses(
+      memoryResponsesPreDiscussion,
+      groupOrderedMemoryItems,
+      groupMemoryOrder,
+    )
+    const filledCount = filledPre.filter(Boolean).length - prevAnswered
+    if (filledCount > 0) setMemoryResponsesPreDiscussion(filledPre)
+    logEvent('group_memory_debug_jump_discussion_gate', {
+      fromPhase: phase,
+      fromSubphase: groupMemorySubphase,
+      preservedAnswers: prevAnswered,
+      autoFilledAnswers: Math.max(0, filledCount),
+    })
+    setGroupMemorySubphase('discussion_gate')
+    setPhase('memory')
+  }
+  const skipCurrentDiscussionOnly = () => {
+    if (!canSkipCurrentDiscussion) return
+    setDiscussionSkipSignal((v) => v + 1)
+    logEvent('group_discussion_debug_skip_request', { phase, subphase: groupMemorySubphase })
+  }
+  const globalDebugCorner = (
+    <div className="debug-corner-wrap">
+      {debugOverlayOpen ? (
+        <div className="debug-corner-panel">
+          <div className="debug-corner-head">
+            <p className="debug-corner-title">Debug jump</p>
+            <button type="button" className="btn debug-corner-collapse" onClick={() => setDebugOverlayOpen(false)}>
+              Hide
+            </button>
+          </div>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('demographics')}>
+            Go to demographics
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('pre_survey')}>
+            Go to pre survey
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('baseline')}>
+            Go to image session 1
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('filler')}>
+            Go to filler task
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('attention2')}>
+            Go to attention check
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('condition')}>
+            Go to image session 2
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('memory_solo_gate')}>
+            Go to memory test start
+          </button>
+          <button
+            type="button"
+            className="btn debug-corner-btn"
+            onClick={() => jumpToStudyPhase('memory_discussion_gate')}
+            disabled={!canJumpToDiscussionGate}
+            title={canJumpToDiscussionGate ? undefined : 'Enable group mode and set Group ID first.'}
+          >
+            Go to just before group discussion
+          </button>
+          <button
+            type="button"
+            className="btn debug-corner-btn"
+            onClick={skipCurrentDiscussionOnly}
+            disabled={!canSkipCurrentDiscussion}
+            title={canSkipCurrentDiscussion ? undefined : 'Available only during an active group discussion timer.'}
+          >
+            Skip current discussion only
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('post_survey')}>
+            {phase === 'memory' && groupModeRequested && groupMemorySubphase === 'discussion'
+              ? 'End group discussion now (fill + next)'
+              : 'Skip to post survey (fill missing)'}
+          </button>
+          <button type="button" className="btn debug-corner-btn" onClick={() => jumpToStudyPhase('complete')}>
+            Go to complete
+          </button>
+          <button type="button" className="btn debug-corner-btn debug-corner-hide-bottom" onClick={() => setDebugOverlayOpen(false)}>
+            Hide panel
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn debug-corner-launcher" onClick={() => setDebugOverlayOpen(true)}>
+          Debug
+        </button>
+      )}
+    </div>
+  )
+  const renderWithGlobalDebug = (content: ReactNode) => (
+    <>
+      {globalDebugCorner}
+      {content}
+    </>
+  )
 
   if (phase === 'intro') {
-    return (
+    return renderWithGlobalDebug(
       <div className="card">
         <header className="card-header">
           <h1>{meta.title}</h1>
@@ -430,39 +677,12 @@ export function StudyFlow() {
             Begin
           </button>
         </div>
-        <DebugSkipBar>
-          <button
-            type="button"
-            className="btn debug-skip"
-            onClick={() => {
-              logEvent('intro_debug_skip', {})
-              setConsentAccepted(true)
-              setCondition('no_edit')
-              logEvent('session_start', {
-                sessionId,
-                condition: 'no_edit',
-                conditionLabel: bundle.study.conditionLabels.no_edit,
-                userAgent: navigator.userAgent,
-                debugSkip: true,
-                presentationOrders: {
-                  baseline: [...presentationOrders.baseline],
-                  condition: [...presentationOrders.condition],
-                  memory: [...presentationOrders.memory],
-                },
-              })
-              logEvent('phase_enter', { phase: 'demographics' })
-              setPhase('demographics')
-            }}
-          >
-            [Debug] Skip intro (auto-check consent, skip Begin)
-          </button>
-        </DebugSkipBar>
       </div>
     )
   }
 
   if (phase === 'group_lobby' && groupModeRequested) {
-    return (
+    return renderWithGlobalDebug(
       <GroupLobby
         groupId={groupId}
         anonId={anonId}
@@ -477,7 +697,7 @@ export function StudyFlow() {
   }
 
   if (phase === 'demographics') {
-    return (
+    return renderWithGlobalDebug(
       <SurveyRunner
         config={bundle.demographics}
         answers={demographicsAnswers}
@@ -498,7 +718,7 @@ export function StudyFlow() {
   }
 
   if (phase === 'pre_survey') {
-    return (
+    return renderWithGlobalDebug(
       <SurveyRunner
         config={bundle.preSurvey}
         answers={preAnswers}
@@ -519,7 +739,7 @@ export function StudyFlow() {
   }
 
   if (phase === 'baseline') {
-    return (
+    return renderWithGlobalDebug(
       <BaselinePhase
         title={meta.baselinePhaseTitle}
         instructions={meta.baselinePhaseInstructions}
@@ -547,39 +767,12 @@ export function StudyFlow() {
   }
 
   if (phase === 'filler') {
-    const skipFillerDebug = () => {
-      logEvent('filler_debug_skip', {
-        fillerType: bundle.filler.type,
-        minDurationSeconds: bundle.filler.minDurationSeconds,
-      })
-      if (bundle.filler.type === 'pacman') {
-        setFillerStats({
-          type: 'pacman',
-          debugSkip: true,
-          note: 'Debug: filler duration skipped',
-        })
-      } else {
-        setFillerStats({
-          type: bundle.filler.type,
-          durationSeconds: bundle.filler.minDurationSeconds,
-          debugSkip: true,
-        })
-      }
-      logEvent('phase_enter', { phase: 'attention2' })
-      setPhase('attention2')
-    }
-
-    return (
+    return renderWithGlobalDebug(
       <div className="card">
         <header className="card-header">
           <h2>{bundle.filler.title}</h2>
           <p className="muted">{bundle.filler.instructions}</p>
         </header>
-        <DebugSkipBar>
-          <button type="button" className="btn debug-skip" onClick={skipFillerDebug}>
-            [Debug] Skip filler timer
-          </button>
-        </DebugSkipBar>
         {bundle.filler.type === 'pacman' ? (
           <FillerPacMan
             durationSeconds={bundle.filler.minDurationSeconds}
@@ -630,7 +823,7 @@ export function StudyFlow() {
   }
 
   if (phase === 'attention2') {
-    return (
+    return renderWithGlobalDebug(
       <SurveyRunner
         config={bundle.attention2}
         answers={attention2Answers}
@@ -653,7 +846,7 @@ export function StudyFlow() {
   if (phase === 'condition') {
     const conditionKey = condition
     if (!conditionKey) {
-      return (
+      return renderWithGlobalDebug(
         <div className="card error-card">
           <p>No Option A/B was recorded. Please return to the start and select the option your researcher assigned.</p>
           <div className="btn-row">
@@ -664,7 +857,7 @@ export function StudyFlow() {
         </div>
       )
     }
-    return (
+    return renderWithGlobalDebug(
       <ConditionPhase
         title={meta.conditionPhaseTitle}
         instructions={meta.conditionPhaseInstructions}
@@ -685,6 +878,12 @@ export function StudyFlow() {
         }
         onComplete={() => {
           logEvent('phase_enter', { phase: 'memory' })
+          if (groupModeRequested) {
+            setGroupMemorySubphase('solo_gate')
+            setMemoryResponsesPreDiscussion([])
+            setMemoryResponses([])
+            clearDiscussionLog()
+          }
           setPhase('memory')
         }}
         logEvent={logEvent}
@@ -695,32 +894,110 @@ export function StudyFlow() {
   if (phase === 'memory') {
     const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
     if (groupModeRequested) {
-      if (!groupMemoryStarted) {
-        return (
+      const groupSize = groupCfg?.groupSize ?? 4
+      const discSec = groupCfg?.discussionDurationSeconds ?? 120
+
+      if (groupMemorySubphase === 'solo_gate') {
+        return renderWithGlobalDebug(
           <div className="card">
             <header className="card-header">
               <h2>{meta.memoryPhaseTitle}</h2>
               <p className="muted">{meta.memoryPhaseInstructions}</p>
               <p className="muted small">
-                You will discuss each masked image for {groupCfg?.discussionDurationSeconds ?? 180} seconds, then
-                submit your answer individually. All participants must press start.
+                First, you will answer <strong>on your own</strong> for each masked image (same format as the main
+                study). Work at your own pace. When everyone has finished, you will move on together.
               </p>
             </header>
             <GroupPhaseStartGate
               groupId={groupId}
               anonId={anonId}
-              groupSize={groupCfg?.groupSize ?? 4}
-              phaseKey="memory"
-              buttonLabel="Start memory test"
+              groupSize={groupSize}
+              phaseKey="memory_solo"
+              buttonLabel="Start individual memory test"
               onStart={() => {
-                logEvent('group_phase_start', { phase: 'memory', groupId, anonId })
-                setGroupMemoryStarted(true)
+                logEvent('group_phase_start', { phase: 'memory_solo', groupId, anonId })
+                setMemoryResponsesPreDiscussion([])
+                setGroupMemorySubphase('solo')
               }}
             />
           </div>
         )
       }
-      return (
+
+      if (groupMemorySubphase === 'solo') {
+        return renderWithGlobalDebug(
+          <MemoryPhase
+            title={meta.memoryPhaseTitle}
+            instructions={`${meta.memoryPhaseInstructions} Answer each item on your own; this part is not a group discussion.`}
+            items={groupOrderedMemoryItems}
+            configItemIndexAtPresentation={groupMemoryOrder}
+            responses={memoryResponsesPreDiscussion}
+            onChange={setMemoryResponsesPreDiscussion}
+            onComplete={(finalSnapshot) => {
+              setMemoryResponsesPreDiscussion(finalSnapshot)
+              logEvent('group_memory_solo_complete', {
+                groupId,
+                anonId,
+                answeredCount: finalSnapshot.filter(Boolean).length,
+              })
+              setGroupMemorySubphase('solo_wait')
+            }}
+            advanceButtonLabel="Next item"
+            finalAdvanceButtonLabel="Finish individual test"
+            memoryAnswerLogExtras={{ groupMode: true, memoryRound: 'pre_discussion' }}
+            logEvent={logEvent}
+          />
+        )
+      }
+
+      if (groupMemorySubphase === 'solo_wait') {
+        return renderWithGlobalDebug(
+          <GroupSoloMemoryWaitGate
+            groupId={groupId}
+            anonId={anonId}
+            groupSize={groupSize}
+            onProceed={() => {
+              logEvent('group_memory_all_solo_done', { groupId, anonId })
+              setGroupMemorySubphase('discussion_gate')
+            }}
+          />
+        )
+      }
+
+      if (groupMemorySubphase === 'discussion_gate') {
+        return renderWithGlobalDebug(
+          <div className="card">
+            <header className="card-header">
+              <h2>{meta.memoryPhaseTitle}</h2>
+              <p className="muted">{meta.memoryPhaseInstructions}</p>
+              <p className="muted">
+                Some of the images you saw were original, while others were versions where certain elements were
+                altered by AI. Your group's goal is to discuss together and reconstruct as accurately as possible what
+                was actually in the original image. Each person's memory is a clue, and differences between memories
+                are also clues that you should reason through together to decide what was real.
+              </p>
+              <p className="muted small">
+                Next, you will see the same questions again with <strong>group discussion</strong>: for each item you
+                will chat anonymously for about {discSec} seconds, then submit your answer on your own. All
+                participants must press Start to begin together.
+              </p>
+            </header>
+            <GroupPhaseStartGate
+              groupId={groupId}
+              anonId={anonId}
+              groupSize={groupSize}
+              phaseKey="memory_discussion"
+              buttonLabel="Start group discussion memory test"
+              onStart={() => {
+                logEvent('group_phase_start', { phase: 'memory_discussion', groupId, anonId })
+                setGroupMemorySubphase('discussion')
+              }}
+            />
+          </div>
+        )
+      }
+
+      return renderWithGlobalDebug(
         <GroupMemoryPhase
           title={meta.memoryPhaseTitle}
           instructions={meta.memoryPhaseInstructions}
@@ -728,9 +1005,10 @@ export function StudyFlow() {
           configItemIndexAtPresentation={groupMemoryOrder}
           groupId={groupId}
           anonId={anonId}
-          groupSize={groupCfg?.groupSize ?? 4}
-          durationSec={groupCfg?.discussionDurationSeconds ?? 180}
+          groupSize={groupSize}
+          durationSec={discSec}
           prompt={groupCfg?.prompt}
+          participantId={formatParticipantIdForDisplay(demographicsAnswers) || undefined}
           responses={memoryResponses}
           onLog={logEvent}
           onMessagePersist={addDiscussionMessage}
@@ -760,43 +1038,10 @@ export function StudyFlow() {
               expectedAnswer: expected,
               isCorrect,
               groupMode: true,
+              memoryRound: 'post_discussion',
             })
           }}
-          onDebugSkip={() => {
-            const now = new Date().toISOString()
-            const fake = groupOrderedMemoryItems.map((it, i) => {
-              const expected = it.expectedAnswer
-              const recall = 'unsure' as const
-              const configItemIndex = groupMemoryOrder[i]!
-              return {
-                itemIndex: configItemIndex,
-                presentationIndex: i,
-                slideId: it.slideId,
-                recall,
-                confidence: 4,
-                ...(expected !== undefined ? { expectedAnswer: expected } : {}),
-                isCorrect: memoryTrialCorrectness(recall, expected),
-              }
-            })
-            setMemoryResponses(fake)
-            groupOrderedMemoryItems.forEach((it, i) => {
-              addDiscussionMessage({
-                questionIndex: i,
-                slideId: it.slideId,
-                anonId,
-                message: `[debug] synthetic chat for item ${i + 1}`,
-                sentAt: now,
-              })
-            })
-            logEvent('group_memory_debug_skip', {
-              itemCount: groupOrderedMemoryItems.length,
-              filledWith: 'unsure/4',
-              fakeChatPerItem: true,
-            })
-            logEvent('phase_enter', { phase: 'post_survey' })
-            setGroupMemoryStarted(false)
-            setPhase('post_survey')
-          }}
+          skipCurrentDiscussionSignal={discussionSkipSignal}
           onComplete={async () => {
             if (externalPostUrl) {
               logEvent('submit_start', {})
@@ -804,18 +1049,18 @@ export function StudyFlow() {
               logEvent('submit_done', {})
               setSubmitCompletedBeforeEndScreen(true)
               logEvent('phase_enter', { phase: 'complete' })
-              setGroupMemoryStarted(false)
+              setGroupMemorySubphase('solo_gate')
               setPhase('complete')
             } else {
               logEvent('phase_enter', { phase: 'post_survey' })
-              setGroupMemoryStarted(false)
+              setGroupMemorySubphase('solo_gate')
               setPhase('post_survey')
             }
           }}
         />
       )
     }
-    return (
+    return renderWithGlobalDebug(
       <MemoryPhase
         title={meta.memoryPhaseTitle}
         instructions={meta.memoryPhaseInstructions}
@@ -850,7 +1095,7 @@ export function StudyFlow() {
       setPhase('complete')
       return null
     }
-    return (
+    return renderWithGlobalDebug(
       <SurveyRunner
         config={bundle.postSurvey}
         answers={postAnswers}
@@ -873,7 +1118,7 @@ export function StudyFlow() {
 
   if (phase === 'complete') {
     const externalPostUrl = meta.postStudyExternalFormUrl?.trim()
-    return (
+    return renderWithGlobalDebug(
       <SessionEndScreen
         submitStatus={submitStatus}
         submitMethod={submitMethod}
@@ -1069,29 +1314,6 @@ function BaselinePhase({
             </button>
           </div>
         )}
-        <DebugSkipBar>
-          <button
-            type="button"
-            className="btn debug-skip"
-            onClick={() => {
-              if (autoAdvancedRef.current) return
-              autoAdvancedRef.current = true
-              logEvent('baseline_debug_skip', {
-                elapsed,
-                idx,
-                maxIdx,
-                durationSec,
-                slideCount: slides.length,
-                beforeViewingStart: true,
-                prepLockBypass: prepLockSecondsLeft > 0,
-              })
-              logEvent('baseline_complete', { elapsed, maxIdx, debugSkip: true })
-              onComplete()
-            }}
-          >
-            [Debug] Skip baseline (ignore timer)
-          </button>
-        </DebugSkipBar>
       </div>
     )
   }
@@ -1113,27 +1335,6 @@ function BaselinePhase({
           When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
-      <DebugSkipBar>
-        <button
-          type="button"
-          className="btn debug-skip"
-          onClick={() => {
-            if (autoAdvancedRef.current) return
-            autoAdvancedRef.current = true
-            logEvent('baseline_debug_skip', {
-              elapsed,
-              idx,
-              maxIdx,
-              durationSec,
-              slideCount: slides.length,
-            })
-            logEvent('baseline_complete', { elapsed, maxIdx, debugSkip: true })
-            onComplete()
-          }}
-        >
-          [Debug] Skip baseline (ignore timer)
-        </button>
-      </DebugSkipBar>
       <div
         className="swipe-stage"
         onTouchStart={onTouchStart}
@@ -1338,26 +1539,6 @@ function ConditionPhase({
             </button>
           </div>
         )}
-        <DebugSkipBar>
-          <button
-            type="button"
-            className="btn debug-skip"
-            onClick={() => {
-              if (!autoAdvancedRef.current) autoAdvancedRef.current = true
-              logEvent('condition_debug_skip', {
-                idx,
-                condition,
-                elapsed,
-                beforeViewingStart: true,
-                prepLockBypass: prepLockSecondsLeft > 0,
-              })
-              logEvent('condition_complete', { condition, debugSkip: true })
-              onComplete()
-            }}
-          >
-            [Debug] Skip stimulus set (ignore timer)
-          </button>
-        </DebugSkipBar>
       </div>
     )
   }
@@ -1380,20 +1561,6 @@ function ConditionPhase({
           When the timer hits {durationSec}s, the next step starts automatically.
         </p>
       </header>
-      <DebugSkipBar>
-        <button
-          type="button"
-          className="btn debug-skip"
-          onClick={() => {
-            if (!autoAdvancedRef.current) autoAdvancedRef.current = true
-            logEvent('condition_debug_skip', { idx, condition, elapsed })
-            logEvent('condition_complete', { condition, debugSkip: true })
-            onComplete()
-          }}
-        >
-          [Debug] Skip stimulus set (ignore timer)
-        </button>
-      </DebugSkipBar>
       <div className="swipe-stage">
         {media === 'video' ? (
           <video
@@ -1440,6 +1607,9 @@ function MemoryPhase({
   onChange,
   onComplete,
   logEvent,
+  advanceButtonLabel = 'Next item',
+  finalAdvanceButtonLabel = 'Continue to questionnaire',
+  memoryAnswerLogExtras,
 }: {
   title: string
   instructions: string
@@ -1449,6 +1619,9 @@ function MemoryPhase({
   onChange: (r: MemoryResponse[]) => void
   onComplete: (finalResponses: MemoryResponse[]) => void | Promise<void>
   logEvent: (t: string, p?: Record<string, unknown>) => void
+  advanceButtonLabel?: string
+  finalAdvanceButtonLabel?: string
+  memoryAnswerLogExtras?: Record<string, unknown>
 }) {
   const [step, setStep] = useState(0)
   const item = items[step]
@@ -1492,6 +1665,7 @@ function MemoryPhase({
       confidence,
       expectedAnswer: expected,
       isCorrect,
+      ...(memoryAnswerLogExtras ?? {}),
     })
     if (step + 1 >= items.length) void onComplete(next)
     else setStep((s) => s + 1)
@@ -1506,36 +1680,6 @@ function MemoryPhase({
           {step + 1} / {items.length}
         </p>
       </header>
-      <DebugSkipBar>
-        <button
-          type="button"
-          className="btn debug-skip"
-          onClick={() => {
-            const stub = items.map((it, i) => {
-              const expected = it.expectedAnswer
-              const recall = 'unsure' as const
-              const configItemIndex = configItemIndexAtPresentation[i]!
-              return {
-                itemIndex: configItemIndex,
-                presentationIndex: i,
-                slideId: it.slideId,
-                recall,
-                confidence: 4,
-                ...(expected !== undefined ? { expectedAnswer: expected } : {}),
-                isCorrect: memoryTrialCorrectness(recall, expected),
-              }
-            })
-            onChange(stub)
-            logEvent('memory_phase_debug_skip', {
-              itemCount: items.length,
-              filledWith: 'unsure/4',
-            })
-            onComplete(stub)
-          }}
-        >
-          [Debug] Skip follow-up block (fill all as Not sure / confidence 4)
-        </button>
-      </DebugSkipBar>
       <img
         key={item.slideId}
         src={assetUrl(item.maskedSrc)}
@@ -1590,7 +1734,7 @@ function MemoryPhase({
           disabled={!recall || confidence === null}
           onClick={saveAndNext}
         >
-          {step + 1 >= items.length ? 'Continue to questionnaire' : 'Next item'}
+          {step + 1 >= items.length ? finalAdvanceButtonLabel : advanceButtonLabel}
         </button>
       </div>
     </div>
@@ -1722,31 +1866,8 @@ function SessionEndScreen({
             <span className="external-survey-warning-strong">Important:</span> Do not close this tab until
             you finish and submit the Google Form. You may close this tab only after form submission.
           </p>
-          <DebugSkipBar>
-            <button
-              type="button"
-              className="btn debug-skip"
-              onClick={() => {
-                logEvent('post_study_external_debug_skip', { url: externalFormUrl })
-              }}
-            >
-              [Debug] Log pretend external survey done
-            </button>
-          </DebugSkipBar>
         </section>
       ) : null}
-      <DebugSkipBar>
-        <button
-          type="button"
-          className="btn debug-skip"
-          onClick={() => {
-            logEvent('complete_debug_reload', {})
-            window.location.reload()
-          }}
-        >
-          [Debug] Reload (session / cache testing)
-        </button>
-      </DebugSkipBar>
     </div>
   )
 }

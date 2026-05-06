@@ -1,5 +1,24 @@
 import { getSupabaseClient } from '../lib/supabaseClient'
 
+interface DiscussionRow {
+  session_id: string
+  group_id: string
+  anon_id: string
+  participant_id: string
+  question_index: number
+  slide_id: string
+  discussion_log: unknown[]
+}
+
+interface DiscussionMessageEntry {
+  questionIndex: number
+  slideId: string
+  anonId: string
+  participantId: string
+  message: string
+  sentAt: string
+}
+
 export interface SubmissionPayload {
   schemaVersion: number
   sessionId: string
@@ -15,6 +34,7 @@ export interface SubmissionPayload {
   fillerStats?: Record<string, unknown>
   groupId?: string
   anonId?: string
+  participantId?: string
   discussionMessages?: unknown[]
 }
 
@@ -50,16 +70,88 @@ export async function submitResults(
       post_survey: payload.postSurvey,
       memory_responses: payload.memoryResponses,
       event_log: payload.eventLog,
-      filler_stats: {
-        ...(payload.fillerStats ?? {}),
-        groupDiscussion: {
-          groupId: payload.groupId ?? '',
-          anonId: payload.anonId ?? '',
-          messages: payload.discussionMessages ?? [],
-        },
-      },
+      filler_stats: payload.fillerStats ?? {},
+      group_id: payload.groupId ?? null,
+      anon_id: payload.anonId ?? null,
+      participant_id: payload.participantId ?? null,
     })
-    if (!error) return { ok: true, method: 'supabase' }
+    if (!error) {
+      const discussionEntries: DiscussionMessageEntry[] = (payload.discussionMessages ?? [])
+        .map((raw) => {
+          if (!raw || typeof raw !== 'object') return null
+          const m = raw as Record<string, unknown>
+          const questionIndex = Number(m.questionIndex)
+          const slideId = String(m.slideId ?? '')
+          const anonId = String(m.anonId ?? '')
+          const participantId = String(m.participantId ?? '')
+          const message = String(m.message ?? '')
+          const sentAt = String(m.sentAt ?? '')
+          if (
+            !Number.isFinite(questionIndex) ||
+            !slideId ||
+            !anonId ||
+            !message ||
+            !sentAt ||
+            !payload.groupId
+          ) {
+            return null
+          }
+          return {
+            questionIndex,
+            slideId,
+            anonId,
+            participantId,
+            message,
+            sentAt,
+          } satisfies DiscussionMessageEntry
+        })
+        .filter((row): row is DiscussionMessageEntry => row !== null)
+
+      const groupedRows: DiscussionRow[] = []
+      const byQuestion = new Map<string, DiscussionMessageEntry[]>()
+      for (const row of discussionEntries) {
+        const key = `${row.questionIndex}::${row.slideId}`
+        const prev = byQuestion.get(key)
+        if (prev) prev.push(row)
+        else byQuestion.set(key, [row])
+      }
+
+      for (const [, rows] of byQuestion.entries()) {
+        const first = rows[0]!
+        const questionIndex = first.questionIndex
+        const slideId = first.slideId
+        const sorted = [...rows].sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+        groupedRows.push({
+          session_id: payload.sessionId,
+          group_id: payload.groupId!,
+          anon_id: payload.anonId ?? '',
+          participant_id: payload.participantId ?? '',
+          question_index: questionIndex,
+          slide_id: slideId,
+          discussion_log: sorted.map((r) => ({
+            anon_id: r.anonId,
+            participant_id: r.participantId || null,
+            message: r.message,
+            sent_at: r.sentAt,
+          })),
+        })
+      }
+
+      // Keep one discussion row per question at group level:
+      // only the designated coordinator (P1) writes discussion rows.
+      if (groupedRows.length > 0 && payload.anonId === 'P1') {
+        const { error: discussionError } = await client.from('discussion_messages').insert(groupedRows)
+        if (discussionError) {
+          console.error('Supabase discussion_messages insert error:', discussionError)
+          return {
+            ok: true,
+            method: 'supabase',
+            error: `Main study data saved, but discussion logs failed to save separately: ${discussionError.message}`,
+          }
+        }
+      }
+      return { ok: true, method: 'supabase' }
+    }
     console.error('Supabase insert error:', error)
     downloadJson(payload)
     return {

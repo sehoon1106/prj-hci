@@ -40,6 +40,10 @@ interface StudySessionValue {
   setPostAnswers: (r: Record<string, string | number>) => void
   memoryResponses: MemoryResponse[]
   setMemoryResponses: (r: MemoryResponse[]) => void
+  /** Group mode: replication-style memory test completed before discussion (same item order as the discussion round). */
+  memoryResponsesPreDiscussion: MemoryResponse[]
+  setMemoryResponsesPreDiscussion: (r: MemoryResponse[]) => void
+  clearDiscussionLog: () => void
   fillerStats: Record<string, unknown>
   setFillerStats: (r: Record<string, unknown>) => void
   logEvent: (type: string, payload?: Record<string, unknown>) => void
@@ -92,6 +96,9 @@ export function StudySessionProvider({
     Record<string, string | number>
   >({})
   const [memoryResponses, setMemoryResponses] = useState<MemoryResponse[]>([])
+  const [memoryResponsesPreDiscussion, setMemoryResponsesPreDiscussion] = useState<MemoryResponse[]>(
+    [],
+  )
   const [fillerStats, setFillerStats] = useState<Record<string, unknown>>({})
   const [eventLog, setEventLog] = useState<LogEvent[]>([])
   const eventLogRef = useRef<LogEvent[]>([])
@@ -131,13 +138,32 @@ export function StudySessionProvider({
       )
       return
     }
-    const memoryPayload = opts?.memoryResponses ?? memoryResponses
+    const groupIdTrimmed = groupId.trim()
+    let postResponses = opts?.memoryResponses ?? memoryResponses
     if (opts?.memoryResponses) {
       setMemoryResponses(opts.memoryResponses)
     }
+    const isGroupSession = Boolean(groupIdTrimmed)
+    const memoryPayload: MemoryResponse[] = isGroupSession
+      ? [
+          ...memoryResponsesPreDiscussion.map((r) => ({
+            ...r,
+            memoryRound: 'pre_discussion' as const,
+          })),
+          ...postResponses.map((r) => ({
+            ...r,
+            memoryRound: 'post_discussion' as const,
+          })),
+        ]
+      : postResponses
     let p = submitInflight.get(sessionId)
     if (!p) {
       p = (async () => {
+        const participantIdRaw = demographicsAnswers.participant_id ?? demographicsAnswers.demo_name
+        const participantId =
+          participantIdRaw === undefined || participantIdRaw === null
+            ? undefined
+            : String(participantIdRaw).trim() || undefined
         const payload: SubmissionPayload = {
           schemaVersion: 1,
           sessionId,
@@ -151,8 +177,9 @@ export function StudySessionProvider({
           memoryResponses: memoryPayload,
           eventLog: eventLogRef.current,
           fillerStats,
-          groupId: groupId.trim(),
-          anonId,
+          groupId: groupIdTrimmed || undefined,
+          anonId: groupIdTrimmed ? anonId : undefined,
+          participantId,
           discussionMessages,
         }
         const r = await submitResults(payload)
@@ -174,6 +201,7 @@ export function StudySessionProvider({
   }, [
     sessionId,
     condition,
+    memoryResponsesPreDiscussion,
     demographicsAnswers,
     preAnswers,
     attention2Answers,
@@ -205,6 +233,9 @@ export function StudySessionProvider({
       setPostAnswers,
       memoryResponses,
       setMemoryResponses,
+      memoryResponsesPreDiscussion,
+      setMemoryResponsesPreDiscussion,
+      clearDiscussionLog: () => setDiscussionMessages([]),
       fillerStats,
       setFillerStats,
       logEvent,
@@ -219,7 +250,17 @@ export function StudySessionProvider({
       setAnonId,
       discussionMessages,
       addDiscussionMessage: (m: DiscussionMessage) => {
-        setDiscussionMessages((prev) => [...prev, m])
+        setDiscussionMessages((prev) => {
+          const exists = prev.some(
+            (x) =>
+              x.questionIndex === m.questionIndex &&
+              x.slideId === m.slideId &&
+              x.anonId === m.anonId &&
+              x.message === m.message &&
+              x.sentAt === m.sentAt,
+          )
+          return exists ? prev : [...prev, m]
+        })
       },
     }),
     [
@@ -234,6 +275,7 @@ export function StudySessionProvider({
       attention2Answers,
       postAnswers,
       memoryResponses,
+      memoryResponsesPreDiscussion,
       fillerStats,
       logEvent,
       eventLog,

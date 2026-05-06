@@ -3,9 +3,134 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { assetUrl } from '../lib/assetUrl'
 import { getSupabaseClient } from '../lib/supabaseClient'
 import type { DiscussionMessage, MemoryItemDef } from '../types/study'
-import { DebugSkipBar } from '../lib/debugUi'
 
 type AnonId = 'P1' | 'P2' | 'P3' | 'P4'
+const DISCUSSION_NICKNAMES = [
+  'BlueFox',
+  'GreenOwl',
+  'SilverPanda',
+  'AmberWhale',
+  'CrimsonKoala',
+  'IvoryTiger',
+  'CopperHawk',
+  'VioletDolphin',
+  'GoldenFalcon',
+  'CobaltRabbit',
+  'MintJaguar',
+  'CoralOtter',
+  'IndigoLynx',
+  'ScarletSeal',
+  'TealMoose',
+  'MaroonEagle',
+  'AzureBear',
+  'LimeHeron',
+  'PlumWolf',
+  'OnyxSwan',
+  'RubyWhale',
+  'KhakiPuma',
+  'OliveRaven',
+  'PearlShark',
+  'SiennaBison',
+  'NavyCrane',
+  'LavenderMarten',
+  'UmberGoose',
+  'TurquoiseFennec',
+  'MagentaYak',
+  'BronzeMole',
+  'GraphiteIbis',
+  'SandViper',
+  'AquaLeopard',
+  'CyanBadger',
+  'RoseMink',
+  'SlateFalcon',
+  'HoneyStoat',
+  'PinePanther',
+  'BlushEgret',
+  'MauveStingray',
+  'AmberWren',
+  'TopazLlama',
+  'JadePelican',
+  'LilacFerret',
+  'CharcoalPuffin',
+  'ApricotManatee',
+  'SteelKite',
+  'MintGazelle',
+  'CloverBoar',
+  'RustCormorant',
+  'CeruleanDingo',
+  'OpalCobra',
+  'PecanMantis',
+  'QuartzTern',
+  'FlintMongoose',
+  'BurgundyMyna',
+  'WillowZebra',
+  'PeachPlover',
+  'ChestnutSkink',
+  'OrchidWalrus',
+  'MapleOsprey',
+  'IrisGibbon',
+  'FogBumblebee',
+] as const
+
+/** Distinct hues for dark UI; paired with `${groupId}::colors::${step}` shuffle per question. */
+const DISCUSSION_NAME_COLORS = ['#58d8ff', '#c4a8ff', '#f5c862', '#5eead4'] as const
+
+function stableHash(input: string): number {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+function seededShuffle<T>(arr: T[], seedText: string): T[] {
+  const out = [...arr]
+  let seed = stableHash(seedText) || 1
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    const j = seed % (i + 1)
+    ;[out[i], out[j]] = [out[j]!, out[i]!]
+  }
+  return out
+}
+
+/** `anonId` values from realtime presence payloads (handles per-key arrays of metas). */
+function presenceAnonIds(channel: RealtimeChannel): string[] {
+  const raw = channel.presenceState() as Record<string, unknown>
+  const ids: string[] = []
+  for (const bucket of Object.values(raw)) {
+    const list = Array.isArray(bucket) ? bucket : bucket != null ? [bucket] : []
+    for (const entry of list) {
+      if (!entry || typeof entry !== 'object') continue
+      const o = entry as Record<string, unknown>
+      const id = o.anonId != null ? String(o.anonId) : ''
+      if (id) ids.push(id)
+    }
+  }
+  return ids
+}
+
+function buildParticipantChatStyle(
+  groupId: string,
+  step: number,
+): Record<AnonId, { nickname: string; color: string }> {
+  const ids = seededShuffle<AnonId>(['P1', 'P2', 'P3', 'P4'], `${groupId}::ids::${step}`)
+  const shuffledPool = seededShuffle<string>([...DISCUSSION_NICKNAMES], `${groupId}::pool`)
+  const chunkStart = (step * 4) % shuffledPool.length
+  const selected = Array.from({ length: 4 }, (_, i) => shuffledPool[(chunkStart + i) % shuffledPool.length]!)
+  const colors = seededShuffle<string>([...DISCUSSION_NAME_COLORS], `${groupId}::colors::${step}`)
+  const map: Record<AnonId, { nickname: string; color: string }> = {
+    P1: { nickname: '', color: '' },
+    P2: { nickname: '', color: '' },
+    P3: { nickname: '', color: '' },
+    P4: { nickname: '', color: '' },
+  }
+  for (let i = 0; i < 4; i += 1) {
+    map[ids[i]!] = { nickname: selected[i]!, color: colors[i]! }
+  }
+  return map
+}
 
 export function GroupPhaseStartGate({
   groupId,
@@ -210,6 +335,124 @@ export function GroupLobby({
   )
 }
 
+/** After each client finishes the individual (pre-discussion) memory test, wait until all have finished before the discussion round. */
+export function GroupSoloMemoryWaitGate({
+  groupId,
+  anonId,
+  groupSize,
+  onProceed,
+}: {
+  groupId: string
+  anonId: AnonId
+  groupSize: number
+  onProceed: () => void
+}) {
+  const [doneIds, setDoneIds] = useState<string[]>([])
+  const proceededRef = useRef(false)
+  const onProceedRef = useRef(onProceed)
+  onProceedRef.current = onProceed
+
+  useEffect(() => {
+    const client = getSupabaseClient()
+    if (!client || !groupId.trim()) return
+
+    /** Union of everyone we've heard from via presence or ping (presence sync can lag per client). */
+    const heard = new Set<string>([anonId])
+
+    const triggerProceed = () => {
+      if (proceededRef.current) return
+      proceededRef.current = true
+      onProceedRef.current()
+    }
+
+    const channel = client.channel(`memory-solo-wait:${groupId.trim()}`, {
+      config: { presence: { key: `${groupId.trim()}-solo-${anonId}` } },
+    })
+
+    const sendPing = () => {
+      void channel.send({
+        type: 'broadcast',
+        event: 'solo_wait_ping',
+        payload: { anonId, at: new Date().toISOString() },
+      })
+    }
+
+    const mergeAndUpdate = () => {
+      for (const id of presenceAnonIds(channel)) heard.add(id)
+      const unique = Array.from(heard).sort()
+      setDoneIds(unique)
+      if (!proceededRef.current && unique.length >= groupSize) {
+        void channel.send({
+          type: 'broadcast',
+          event: 'memory_solo_all_done',
+          payload: { at: new Date().toISOString(), triggeredBy: anonId },
+        })
+        triggerProceed()
+      }
+    }
+
+    channel
+      .on('broadcast', { event: 'memory_solo_all_done' }, () => {
+        triggerProceed()
+      })
+      .on('broadcast', { event: 'solo_wait_ping' }, ({ payload }) => {
+        const p = payload as { anonId?: string } | undefined
+        const id = String(p?.anonId ?? '')
+        if (id) heard.add(id)
+        mergeAndUpdate()
+      })
+      .on('presence', { event: 'sync' }, () => {
+        queueMicrotask(mergeAndUpdate)
+      })
+      .on('presence', { event: 'join' }, () => {
+        queueMicrotask(mergeAndUpdate)
+      })
+      .on('presence', { event: 'leave' }, () => {
+        queueMicrotask(mergeAndUpdate)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            anonId,
+            soloMemoryWait: true,
+            joinedAt: new Date().toISOString(),
+          })
+          sendPing()
+          queueMicrotask(mergeAndUpdate)
+          window.setTimeout(mergeAndUpdate, 50)
+          window.setTimeout(mergeAndUpdate, 250)
+        }
+      })
+
+    const pingEveryMs = 1200
+    const pingId = window.setInterval(() => {
+      sendPing()
+      mergeAndUpdate()
+    }, pingEveryMs)
+
+    return () => {
+      window.clearInterval(pingId)
+      void channel.untrack()
+      void client.removeChannel(channel)
+    }
+  }, [anonId, groupId, groupSize])
+
+  return (
+    <div className="card">
+      <header className="card-header">
+        <h2>Waiting for your group</h2>
+        <p className="muted">
+          You finished the individual memory test. The next step (group discussion per question) starts after everyone completes this part.
+        </p>
+      </header>
+      <p className="muted small">
+        Finished: {doneIds.length} / {groupSize}
+      </p>
+      <p className="muted small">{doneIds.length ? doneIds.join(', ') : '(no signals yet)'}</p>
+    </div>
+  )
+}
+
 export function GroupMemoryPhase({
   title,
   instructions,
@@ -220,11 +463,12 @@ export function GroupMemoryPhase({
   groupSize,
   durationSec,
   prompt,
+  participantId,
   onLog,
   onMessagePersist,
   onAnswer,
   responses,
-  onDebugSkip,
+  skipCurrentDiscussionSignal,
   onComplete,
 }: {
   title: string
@@ -236,11 +480,12 @@ export function GroupMemoryPhase({
   groupSize: number
   durationSec: number
   prompt?: string
+  participantId?: string
   onLog: (t: string, p?: Record<string, unknown>) => void
   onMessagePersist: (m: DiscussionMessage) => void
   onAnswer: (step: number, recall: 'agree' | 'disagree' | 'unsure', confidence: number) => void
   responses: Array<{ recall: 'agree' | 'disagree' | 'unsure'; confidence: number } | undefined>
-  onDebugSkip: () => void
+  skipCurrentDiscussionSignal?: number
   onComplete: () => void
 }) {
   const [step, setStep] = useState(0)
@@ -251,13 +496,17 @@ export function GroupMemoryPhase({
   const [messages, setMessages] = useState<DiscussionMessage[]>([])
   const [answeredIds, setAnsweredIds] = useState<string[]>([])
   const [submittedThisStep, setSubmittedThisStep] = useState(false)
-  const [advancePending, setAdvancePending] = useState(false)
+  const [advanceForStep, setAdvanceForStep] = useState<number | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const sentAdvanceForStepRef = useRef<number | null>(null)
-  const appliedAdvanceForStepRef = useRef<number | null>(null)
+  const appliedAdvanceForStepRef = useRef<number>(-1)
+  const advancedStepRef = useRef<number>(-1)
+  const submittedStepRef = useRef<number | null>(null)
+  const lastSkipSignalRef = useRef<number>(0)
   const item = items[step]
   const total = durationSec > 0 ? durationSec : 1
   const progressPct = Math.min(100, Math.max(0, Math.round(((total - left) / total) * 100)))
+  const participantChatStyle = useMemo(() => buildParticipantChatStyle(groupId, step), [groupId, step])
 
   useEffect(() => {
     setPhase('discussion')
@@ -265,9 +514,7 @@ export function GroupMemoryPhase({
     setMessages([])
     setAnsweredIds([])
     setSubmittedThisStep(false)
-    setAdvancePending(false)
-    sentAdvanceForStepRef.current = null
-    appliedAdvanceForStepRef.current = null
+    setAdvanceForStep(null)
     setRecall(responses[step]?.recall ?? null)
     setConfidence(responses[step]?.confidence ?? null)
   }, [durationSec, step])
@@ -294,9 +541,13 @@ export function GroupMemoryPhase({
       .on('broadcast', { event: 'message' }, ({ payload }) => {
         const incoming = payload as DiscussionMessage
         setMessages((prev) => [...prev, incoming])
+        onMessagePersist(incoming)
       })
       .on('broadcast', { event: 'answer_done' }, ({ payload }) => {
-        const id = String((payload as Record<string, unknown>).anonId ?? '')
+        const typedPayload = payload as Record<string, unknown> | undefined
+        const forStep = Number(typedPayload?.step ?? -1)
+        if (forStep !== step) return
+        const id = String(typedPayload?.anonId ?? '')
         if (!id) return
         setAnsweredIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
       })
@@ -304,9 +555,9 @@ export function GroupMemoryPhase({
         const typedPayload = payload as Record<string, unknown> | undefined
         const forStep = Number(typedPayload?.step ?? -1)
         if (forStep !== step) return
-        if (appliedAdvanceForStepRef.current === step) return
-        appliedAdvanceForStepRef.current = step
-        setAdvancePending(true)
+        if (forStep <= appliedAdvanceForStepRef.current) return
+        appliedAdvanceForStepRef.current = forStep
+        setAdvanceForStep(forStep)
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -325,14 +576,16 @@ export function GroupMemoryPhase({
   }, [anonId, groupId, item.slideId, onLog, step, configItemIndexAtPresentation])
 
   useEffect(() => {
-    if (!submittedThisStep || phase !== 'answer' || advancePending) return
+    if (!submittedThisStep || phase !== 'answer') return
+    if (advanceForStep === step) return
+    if (submittedStepRef.current !== step) return
     if (answeredIds.length < groupSize) return
     const coordinator = [...answeredIds].sort()[0]
     if (anonId !== coordinator) return
     if (sentAdvanceForStepRef.current === step) return
     sentAdvanceForStepRef.current = step
     appliedAdvanceForStepRef.current = step
-    setAdvancePending(true)
+    setAdvanceForStep(step)
     void channelRef.current?.send({
       type: 'broadcast',
       event: 'advance_step',
@@ -342,18 +595,46 @@ export function GroupMemoryPhase({
         at: new Date().toISOString(),
       },
     })
-  }, [submittedThisStep, phase, advancePending, answeredIds, groupSize, step, anonId])
+  }, [submittedThisStep, phase, advanceForStep, answeredIds, groupSize, step, anonId])
 
   useEffect(() => {
-    if (!advancePending) return
+    if (advanceForStep === null) return
+    if (advanceForStep < step) {
+      setAdvanceForStep(null)
+      return
+    }
+    if (advanceForStep !== step) return
+    if (advancedStepRef.current === step) {
+      setAdvanceForStep(null)
+      return
+    }
+    advancedStepRef.current = step
     if (step + 1 >= items.length) {
-      setAdvancePending(false)
+      setAdvanceForStep(null)
       onComplete()
       return
     }
-    setAdvancePending(false)
-    setStep((s) => s + 1)
-  }, [advancePending, items.length, onComplete, step])
+    setAdvanceForStep(null)
+    setStep(advanceForStep + 1)
+  }, [advanceForStep, items.length, onComplete, step])
+
+  useEffect(() => {
+    if (!skipCurrentDiscussionSignal) return
+    if (skipCurrentDiscussionSignal <= lastSkipSignalRef.current) return
+    lastSkipSignalRef.current = skipCurrentDiscussionSignal
+    if (phase !== 'discussion') return
+    onMessagePersist({
+      questionIndex: step,
+      slideId: item.slideId,
+      anonId,
+      participantId,
+      message: '[debug] skipped current discussion',
+      sentAt: new Date().toISOString(),
+    })
+    onLog('group_discussion_debug_skip', { step, slideId: item.slideId, anonId, source: 'overlay' })
+    setLeft(0)
+    setPhase('answer')
+  }, [anonId, item.slideId, onLog, onMessagePersist, participantId, phase, skipCurrentDiscussionSignal, step])
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim()
@@ -362,6 +643,7 @@ export function GroupMemoryPhase({
       questionIndex: step,
       slideId: item.slideId,
       anonId,
+      participantId,
       message: trimmed,
       sentAt: new Date().toISOString(),
     }
@@ -373,6 +655,7 @@ export function GroupMemoryPhase({
   const submitAnswer = () => {
     if (!recall || confidence === null) return
     onAnswer(step, recall, confidence)
+    submittedStepRef.current = step
     setSubmittedThisStep(true)
     setAnsweredIds((prev) => (prev.includes(anonId) ? prev : [...prev, anonId]))
     void channelRef.current?.send({
@@ -395,15 +678,9 @@ export function GroupMemoryPhase({
           {step + 1} / {items.length}
         </p>
       </header>
-      <DebugSkipBar>
-        <button type="button" className="btn debug-skip" onClick={onDebugSkip}>
-          [Debug] Skip group memory (fill answers + fake chat)
-        </button>
-      </DebugSkipBar>
       <img src={assetUrl(item.maskedSrc)} alt="" className="masked-img" />
       {phase === 'discussion' ? (
         <div className="discussion-wrap">
-          {prompt ? <p className="muted">{prompt}</p> : null}
           <p className="timer">Discussion time left: {left}s</p>
           <div
             className="discussion-time-track"
@@ -414,27 +691,13 @@ export function GroupMemoryPhase({
           >
             <div className="discussion-time-fill" style={{ width: `${progressPct}%` }} />
           </div>
-          <ChatBox messages={messages} onSend={sendMessage} />
-          <DebugSkipBar>
-            <button
-              type="button"
-              className="btn debug-skip"
-              onClick={() => {
-                onMessagePersist({
-                  questionIndex: step,
-                  slideId: item.slideId,
-                  anonId,
-                  message: '[debug] skipped discussion timer',
-                  sentAt: new Date().toISOString(),
-                })
-                onLog('group_discussion_debug_skip', { step, slideId: item.slideId, anonId })
-                setLeft(0)
-                setPhase('answer')
-              }}
-            >
-              [Debug] Skip this discussion
-            </button>
-          </DebugSkipBar>
+          <ChatBox
+            messages={messages}
+            onSend={sendMessage}
+            participantChatStyle={participantChatStyle}
+            myAnonId={anonId}
+            systemPrompt={prompt?.trim() || 'What do you think was in the masked area?'}
+          />
         </div>
       ) : (
         <>
@@ -496,9 +759,15 @@ export function GroupMemoryPhase({
 function ChatBox({
   messages,
   onSend,
+  participantChatStyle,
+  myAnonId,
+  systemPrompt,
 }: {
   messages: DiscussionMessage[]
   onSend: (text: string) => Promise<void>
+  participantChatStyle: Record<AnonId, { nickname: string; color: string }>
+  myAnonId: AnonId
+  systemPrompt: string
 }) {
   const [draft, setDraft] = useState('')
   const list = useMemo(() => messages.slice(-80), [messages])
@@ -520,11 +789,23 @@ function ChatBox({
   return (
     <div className="chat-box">
       <div ref={logRef} className="chat-log" onScroll={updateStickiness}>
-        {list.map((m, idx) => (
-          <p key={`${m.sentAt}-${idx}`} className="chat-msg">
-            <strong>{m.anonId}:</strong> {m.message}
-          </p>
-        ))}
+        <p className="chat-msg chat-msg-system">{systemPrompt}</p>
+        {list.map((m, idx) => {
+          const aid = m.anonId as AnonId
+          const style = participantChatStyle[aid]
+          const label = style?.nickname?.trim() ? style.nickname : 'Anon'
+          const color = style?.color ?? '#dbe0ee'
+          const isMe = aid === myAnonId
+          return (
+            <p key={`${m.sentAt}-${idx}`} className="chat-msg">
+              <strong className="chat-msg-name" style={{ color }}>
+                {label}
+                {isMe ? <span className="chat-msg-me"> (me)</span> : null}:
+              </strong>{' '}
+              {m.message}
+            </p>
+          )
+        })}
       </div>
       <form
         className="chat-input-row"

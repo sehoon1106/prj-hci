@@ -175,6 +175,11 @@ export interface MemoryResponse {
   slideId: string
   recall: 'agree' | 'disagree' | 'unsure'
   confidence: number
+  /**
+   * Group sessions: first individual pass vs. post-discussion responses. Omitted in individual-only runs.
+   * Both rounds use the same `presentationIndex` / `itemIndex` semantics (15 trials each, stored as separate entries in `memory_responses`).
+   */
+  memoryRound?: 'pre_discussion' | 'post_discussion'
   /** Ground-truth key from `memory-items.json`, if present. */
   expectedAnswer?: 'agree' | 'disagree'
   /**
@@ -188,6 +193,7 @@ export interface DiscussionMessage {
   questionIndex: number
   slideId: string
   anonId: string
+  participantId?: string
   message: string
   sentAt: string
 }
