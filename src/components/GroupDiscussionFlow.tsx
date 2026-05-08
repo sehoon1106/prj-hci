@@ -245,6 +245,7 @@ export function GroupLobby({
   onStart: () => void
 }) {
   const [onlineIds, setOnlineIds] = useState<string[]>([])
+  const [duplicateAnonIds, setDuplicateAnonIds] = useState<string[]>([])
   const [readyIds, setReadyIds] = useState<string[]>([])
   const [ready, setReady] = useState(false)
   const startedRef = useRef(false)
@@ -257,6 +258,10 @@ export function GroupLobby({
       config: { presence: { key: `${groupId.trim()}-${anonId}` } },
     })
     channelRef.current = channel
+    const leaveLobby = () => {
+      void channel.untrack()
+      void client.removeChannel(channel)
+    }
     const triggerStart = () => {
       if (startedRef.current) return
       startedRef.current = true
@@ -268,14 +273,21 @@ export function GroupLobby({
         .flat()
         .map((entry) => String(entry.anonId ?? ''))
         .filter(Boolean)
+      const counts = new Map<string, number>()
+      for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1)
+      const duplicated = Array.from(counts.entries())
+        .filter(([, n]) => n > 1)
+        .map(([id]) => id)
+        .sort()
       setOnlineIds(Array.from(new Set(ids)).sort())
+      setDuplicateAnonIds(duplicated)
       const readySet = Object.values(presence)
         .flat()
         .filter((entry) => Boolean(entry.ready))
         .map((entry) => String(entry.anonId ?? ''))
       const uniqueReady = Array.from(new Set(readySet)).sort()
       setReadyIds(uniqueReady)
-      if (!startedRef.current && uniqueReady.length >= groupSize) {
+      if (!startedRef.current && duplicated.length === 0 && uniqueReady.length >= groupSize) {
         void channel.send({
           type: 'broadcast',
           event: 'group_start',
@@ -297,9 +309,12 @@ export function GroupLobby({
           await channel.track({ anonId, ready: false, joinedAt: new Date().toISOString() })
         }
       })
+    window.addEventListener('pagehide', leaveLobby)
+    window.addEventListener('beforeunload', leaveLobby)
     return () => {
-      void channel.untrack()
-      void client.removeChannel(channel)
+      window.removeEventListener('pagehide', leaveLobby)
+      window.removeEventListener('beforeunload', leaveLobby)
+      leaveLobby()
     }
   }, [anonId, groupId, groupSize, onStart])
 
@@ -312,6 +327,12 @@ export function GroupLobby({
       <p>
         Group: <strong>{groupId}</strong> · You are <strong>{anonId}</strong>
       </p>
+      {duplicateAnonIds.length > 0 ? (
+        <p className="group-lobby-warning">
+          Warning: duplicate anonymous label detected ({duplicateAnonIds.join(', ')}). Someone should refresh and
+          choose a different P#.
+        </p>
+      ) : null}
       <p className="muted small">Online: {onlineIds.join(', ') || 'None yet'}</p>
       <p className="muted small">Ready: {readyIds.join(', ') || 'None yet'}</p>
       <div className="btn-row">

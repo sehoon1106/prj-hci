@@ -137,16 +137,32 @@ export async function submitResults(
         })
       }
 
-      // Keep one discussion row per question at group level:
-      // only the designated coordinator (P1) writes discussion rows.
-      if (groupedRows.length > 0 && payload.anonId === 'P1') {
-        const { error: discussionError } = await client.from('discussion_messages').insert(groupedRows)
-        if (discussionError) {
-          console.error('Supabase discussion_messages insert error:', discussionError)
-          return {
-            ok: true,
-            method: 'supabase',
-            error: `Main study data saved, but discussion logs failed to save separately: ${discussionError.message}`,
+      // Merge per-question discussion rows at DB level.
+      // Any participant may submit; DB function dedupes/merges by (group_id, question_index, slide_id).
+      if (groupedRows.length > 0) {
+        for (const row of groupedRows) {
+          const { error: rpcError } = await client.rpc('upsert_discussion_log_row', {
+            p_session_id: row.session_id,
+            p_group_id: row.group_id,
+            p_anon_id: row.anon_id,
+            p_participant_id: row.participant_id,
+            p_question_index: row.question_index,
+            p_slide_id: row.slide_id,
+            p_discussion_log: row.discussion_log,
+          })
+          if (!rpcError) continue
+
+          // Fallback for environments where the RPC function is not installed yet.
+          const { error: fallbackError } = await client.from('discussion_messages').upsert(row, {
+            onConflict: 'group_id,question_index,slide_id',
+          })
+          if (fallbackError) {
+            console.error('Supabase discussion_messages upsert error:', fallbackError)
+            return {
+              ok: true,
+              method: 'supabase',
+              error: `Main study data saved, but discussion logs failed to save separately: ${fallbackError.message}`,
+            }
           }
         }
       }

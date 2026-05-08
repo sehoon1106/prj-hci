@@ -217,6 +217,7 @@ function CountdownFiller({
 }
 
 export function StudyFlow() {
+  const showDebugUi = import.meta.env.DEV
   const {
     bundle,
     phase,
@@ -519,10 +520,14 @@ export function StudyFlow() {
     </div>
   )
   const renderWithGlobalDebug = (content: ReactNode) => (
-    <>
-      {globalDebugCorner}
-      {content}
-    </>
+    showDebugUi ? (
+      <>
+        {globalDebugCorner}
+        {content}
+      </>
+    ) : (
+      <>{content}</>
+    )
   )
 
   if (phase === 'intro') {
