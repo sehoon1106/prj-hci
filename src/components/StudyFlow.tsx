@@ -137,6 +137,20 @@ function formatParticipantIdForDisplay(answers: Record<string, string | number>)
   return String(raw).trim()
 }
 
+function parseConsentSections(consentText: string): { lead: string; items: string[] } {
+  const normalized = consentText.replace(/\s+/g, ' ').trim()
+  if (!normalized) return { lead: '', items: [] }
+  const parts = normalized.split(/(?=\d+\)\s)/g).map((p) => p.trim()).filter(Boolean)
+  const items: string[] = []
+  let lead = ''
+  for (const part of parts) {
+    const m = part.match(/^(\d+)\)\s*(.*)$/)
+    if (m) items.push(m[2]!.trim())
+    else lead = lead ? `${lead} ${part}` : part
+  }
+  return { lead, items }
+}
+
 function CountdownFiller({
   seconds,
   onDone,
@@ -242,7 +256,7 @@ export function StudyFlow() {
   const meta = bundle.study
   const groupCfg = meta.groupDiscussion
   const groupModeEnabled = Boolean(groupCfg?.enabled)
-  const [groupModeRequested, setGroupModeRequested] = useState(false)
+  const [groupModeRequested, setGroupModeRequested] = useState(() => groupModeEnabled)
   const [groupMemorySubphase, setGroupMemorySubphase] = useState<GroupMemorySubphase>('solo_gate')
   const slides = bundle.slides.slides
   const memoryItems = bundle.memory.items
@@ -266,6 +280,7 @@ export function StudyFlow() {
     () => groupMemoryOrder.map((i) => memoryItems[i]!),
     [groupMemoryOrder, memoryItems],
   )
+  const consentSections = useMemo(() => parseConsentSections(meta.consentText), [meta.consentText])
   const fillMissingMemoryResponses = (
     existing: MemoryResponse[],
     itemsForPhase: MemoryItemDef[],
@@ -536,7 +551,18 @@ export function StudyFlow() {
             </ul>
           </section>
         ) : null}
-        <p className="consent">{meta.consentText}</p>
+        <section className="consent consent-card" aria-label="Consent details">
+          {consentSections.lead ? <p className="consent-lead">{consentSections.lead}</p> : null}
+          {consentSections.items.length > 0 ? (
+            <ol className="consent-list">
+              {consentSections.items.map((itemText, idx) => (
+                <li key={idx}>{itemText}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="consent-lead">{meta.consentText}</p>
+          )}
+        </section>
         {groupModeEnabled ? (
           <label className="check-row">
             <input

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "title": "Photograph viewing study",
-  "shortDescription": "This session takes about 15–20 minutes. Please read the overview below, then review the consent text.",
+  "title": "Informed Consent for Human Subjects",
+  "shortDescription": "Basic Information of Research Project - An Experimental Study of Visual Perceptions of Edited Images. The study takes about 45-50 minutes per person.",
   "procedureSteps": [
     "You will skim a set of 15 photographs—you have about one minute to view all of them.",
     "You will then complete a short Pac-Man-style game (about two minutes)—please focus on the game only during that break.",
     "You will skim 15 images again (a modified version of the set) for about one minute.",
-    "After that, you will complete a short set of items about the first group of images you viewed.",
-    "For research reasons we cannot disclose every detail of the study’s purpose in advance, but nothing in this task is expected to cause you harm."
+    "After that, you will complete a short set of questions about the first image set in a group of four: discuss what you saw in the chat box and then answer individually (no group consensus required). Each question has 2 minutes for discussion.",
+    "The study will end with a short post-study questionnaire."
   ],
-  "consentText": "This research is for academic purposes and your responses will be handled anonymously. Participation is voluntary and you may stop at any time. If you agree, you may begin below.",
+  "consentText": "1) This project is conducted solely for research. 2) Purpose: to study how people perceive and process original and edited visual content as digitally edited media becomes more common. 3) Expected participation time is about 45-50 minutes. 4) Possible inconvenience: slight confusion or discomfort after viewing edited versions of previously seen images. 5) Expected benefit: +10 friendship points with the friend who recruited you. 6) Personal information collected for experiment administration includes name, age, gender, and education; records are kept for 2 months after study completion and then discarded. 7) Participation is voluntary; you may refuse or withdraw at any time without discrimination, and if you withdraw, your study data will be discarded. 8) Malicious or intentionally inaccurate responses are not allowed; contaminated data may be excluded. If you have questions, discomfort, or any research-related damage concerns, please contact the research team listed above.",
   "baselinePhaseTitle": "First image set",
   "baselinePhaseInstructions": "The following images are similar to everyday, news, or documentary-style scenes. Browse each scene naturally. Swipe the screen or use the buttons to move between images. You have about one minute on this screen; when that time runs out, the study advances to the next step automatically—you cannot stay longer or pause this block.",
   "conditionPhaseTitle": "Second image set",

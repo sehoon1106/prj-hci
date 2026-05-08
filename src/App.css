@@ -113,6 +113,27 @@ body {
   color: #c5cad8;
 }
 
+.consent-card {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #2a334a;
+  border-radius: 10px;
+  background: rgba(10, 15, 28, 0.6);
+  line-height: 1.55;
+}
+
+.consent-lead {
+  margin: 0;
+}
+
+.consent-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .check-row {
   display: flex;
   align-items: flex-start;
