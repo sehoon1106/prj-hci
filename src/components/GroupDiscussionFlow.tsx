@@ -269,8 +269,16 @@ export function GroupLobby({
     }
     const sync = () => {
       const presence = channel.presenceState<Record<string, unknown>>()
-      const ids = Object.values(presence)
-        .flat()
+      // Supabase presence can keep multiple metas per same presence key after track updates.
+      // Normalize to "latest meta per key" to avoid false duplicate detection.
+      const latestByKey = Object.entries(presence)
+        .map(([, metas]) => {
+          const list = Array.isArray(metas) ? metas : [metas]
+          return list.length > 0 ? (list[list.length - 1] as Record<string, unknown>) : null
+        })
+        .filter((entry): entry is Record<string, unknown> => entry !== null)
+
+      const ids = latestByKey
         .map((entry) => String(entry.anonId ?? ''))
         .filter(Boolean)
       const counts = new Map<string, number>()
@@ -281,8 +289,7 @@ export function GroupLobby({
         .sort()
       setOnlineIds(Array.from(new Set(ids)).sort())
       setDuplicateAnonIds(duplicated)
-      const readySet = Object.values(presence)
-        .flat()
+      const readySet = latestByKey
         .filter((entry) => Boolean(entry.ready))
         .map((entry) => String(entry.anonId ?? ''))
       const uniqueReady = Array.from(new Set(readySet)).sort()
