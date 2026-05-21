@@ -65,15 +65,16 @@ export async function fetchDiscussionMessagesForQuestion(
   signal?: AbortSignal,
 ): Promise<DiscussionMessage[]> {
   if (signal?.aborted) return []
-  let query = client
+  // NOTE: `.abortSignal()` lives on `PostgrestFilterBuilder` and must be applied BEFORE the
+  // terminating `.maybeSingle()`, which downgrades the chain to `PostgrestBuilder` (no abort).
+  let filter = client
     .from('discussion_messages')
     .select('discussion_log')
     .eq('group_id', groupId.trim())
     .eq('question_index', questionIndex)
     .eq('slide_id', slideId)
-    .maybeSingle()
-  if (signal) query = query.abortSignal(signal)
-  const { data, error } = await query
+  if (signal) filter = filter.abortSignal(signal)
+  const { data, error } = await filter.maybeSingle()
 
   if (error) {
     if (signal?.aborted) return []
