@@ -1,3 +1,5 @@
+import { conditionExposureForSlide } from '../lib/groupConditionAssignment'
+import type { GroupSlideConditionExposure } from '../lib/groupConditionAssignment'
 import { getSupabaseClient } from '../lib/supabaseClient'
 
 interface DiscussionRow {
@@ -8,6 +10,7 @@ interface DiscussionRow {
   question_index: number
   slide_id: string
   discussion_log: unknown[]
+  condition_exposure: GroupSlideConditionExposure | null
 }
 
 interface DiscussionMessageEntry {
@@ -36,6 +39,10 @@ export interface SubmissionPayload {
   anonId?: string
   participantId?: string
   discussionMessages?: unknown[]
+  /** Group mode: slideId → `no_edit` | `ai_edited_image` for this participant. */
+  groupConditionBySlide?: Record<string, string>
+  /** Group mode: full 2×2 assignment table (same for all group members). */
+  groupConditionExposureTable?: unknown[]
 }
 
 function downloadJson(data: SubmissionPayload) {
@@ -58,7 +65,7 @@ export async function submitResults(
 ): Promise<{ ok: boolean; method: 'supabase' | 'download' | 'failed'; error?: string }> {
   const client = getSupabaseClient()
   if (client) {
-    const { error } = await client.from('study_submissions').insert({
+    const row = {
       session_id: payload.sessionId,
       condition_key: payload.conditionKey,
       submitted_at: payload.submittedAt,
@@ -74,6 +81,11 @@ export async function submitResults(
       group_id: payload.groupId ?? null,
       anon_id: payload.anonId ?? null,
       participant_id: payload.participantId ?? null,
+      group_condition_by_slide: payload.groupConditionBySlide ?? null,
+      group_condition_exposure_table: payload.groupConditionExposureTable ?? null,
+    }
+    const { error } = await client.from('study_submissions').upsert(row, {
+      onConflict: 'session_id',
     })
     if (!error) {
       const discussionEntries: DiscussionMessageEntry[] = (payload.discussionMessages ?? [])
@@ -107,6 +119,9 @@ export async function submitResults(
         })
         .filter((row): row is DiscussionMessageEntry => row !== null)
 
+      const exposureTable = (payload.groupConditionExposureTable ??
+        []) as GroupSlideConditionExposure[]
+
       const groupedRows: DiscussionRow[] = []
       const byQuestion = new Map<string, DiscussionMessageEntry[]>()
       for (const row of discussionEntries) {
@@ -134,6 +149,7 @@ export async function submitResults(
             message: r.message,
             sent_at: r.sentAt,
           })),
+          condition_exposure: conditionExposureForSlide(exposureTable, slideId) ?? null,
         })
       }
 
@@ -149,6 +165,7 @@ export async function submitResults(
             p_question_index: row.question_index,
             p_slide_id: row.slide_id,
             p_discussion_log: row.discussion_log,
+            p_condition_exposure: row.condition_exposure,
           })
           if (!rpcError) continue
 

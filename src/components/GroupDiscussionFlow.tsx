@@ -1,10 +1,48 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { assetUrl } from '../lib/assetUrl'
 import { getSupabaseClient } from '../lib/supabaseClient'
+import {
+  GROUP_PARTICIPANT_IDS,
+  hasGroupQuorum,
+  presenceLatestMetas,
+  presenceParticipantIds,
+  GROUP_BROADCAST_RETRY_DELAYS_MS,
+  GROUP_SYNC_TICK_MS,
+  broadcastViaChannel,
+  scheduleBroadcastRetries,
+  uniqueGroupParticipantIds,
+  type GroupMemoryProgressPayload,
+  type GroupParticipantId,
+} from '../lib/groupSync'
+import { useGroupPresenceReadyGate } from '../hooks/useGroupPresenceReadyGate'
+import {
+  appendDiscussionMessageLive,
+  fetchDiscussionMessagesForQuestion,
+} from '../lib/discussionChatSync'
+import { fetchAnsweredAnonIdsForStep } from '../lib/memoryAnswerSync'
+import { fetchGroupStepSignalAnons, recordGroupStepSignal } from '../lib/groupStepSignals'
 import type { DiscussionMessage, MemoryItemDef } from '../types/study'
 
-type AnonId = 'P1' | 'P2' | 'P3' | 'P4'
+function isSameDiscussionMessage(a: DiscussionMessage, b: DiscussionMessage): boolean {
+  return (
+    a.questionIndex === b.questionIndex &&
+    a.slideId === b.slideId &&
+    a.anonId === b.anonId &&
+    a.message === b.message &&
+    a.sentAt === b.sentAt
+  )
+}
+
+function appendDiscussionMessage(
+  prev: DiscussionMessage[],
+  incoming: DiscussionMessage,
+): DiscussionMessage[] {
+  if (prev.some((m) => isSameDiscussionMessage(m, incoming))) return prev
+  return [...prev, incoming]
+}
+
+type AnonId = GroupParticipantId
 const DISCUSSION_NICKNAMES = [
   'BlueFox',
   'GreenOwl',
@@ -95,22 +133,6 @@ function seededShuffle<T>(arr: T[], seedText: string): T[] {
   return out
 }
 
-/** `anonId` values from realtime presence payloads (handles per-key arrays of metas). */
-function presenceAnonIds(channel: RealtimeChannel): string[] {
-  const raw = channel.presenceState() as Record<string, unknown>
-  const ids: string[] = []
-  for (const bucket of Object.values(raw)) {
-    const list = Array.isArray(bucket) ? bucket : bucket != null ? [bucket] : []
-    for (const entry of list) {
-      if (!entry || typeof entry !== 'object') continue
-      const o = entry as Record<string, unknown>
-      const id = o.anonId != null ? String(o.anonId) : ''
-      if (id) ids.push(id)
-    }
-  }
-  return ids
-}
-
 function buildParticipantChatStyle(
   groupId: string,
   step: number,
@@ -153,59 +175,29 @@ export function GroupPhaseStartGate({
   disabledReason?: string
   onStart: () => void
 }) {
-  const [ready, setReady] = useState(false)
-  const [readyIds, setReadyIds] = useState<string[]>([])
-  const channelRef = useRef<RealtimeChannel | null>(null)
-  const startedRef = useRef(false)
-
-  useEffect(() => {
-    const client = getSupabaseClient()
-    if (!client || !groupId.trim()) return
-    const channel = client.channel(`phase-gate:${groupId.trim()}:${phaseKey}`, {
-      config: { presence: { key: `${groupId.trim()}-${phaseKey}-${anonId}` } },
-    })
-    channelRef.current = channel
-    const triggerStart = () => {
-      if (startedRef.current) return
-      startedRef.current = true
-      onStart()
-    }
-    const sync = () => {
-      const presence = channel.presenceState<Record<string, unknown>>()
-      const ids = Object.values(presence)
-        .flat()
-        .filter((entry) => Boolean(entry.ready))
-        .map((entry) => String(entry.anonId ?? ''))
-        .filter(Boolean)
-      const uniqueReady = Array.from(new Set(ids)).sort()
-      setReadyIds(uniqueReady)
-      if (!startedRef.current && uniqueReady.length >= groupSize) {
-        void channel.send({
-          type: 'broadcast',
-          event: 'phase_start',
-          payload: { phaseKey, at: new Date().toISOString() },
-        })
-        triggerStart()
-      }
-    }
-    channel
-      .on('broadcast', { event: 'phase_start' }, () => triggerStart())
-      .on('presence', { event: 'sync' }, sync)
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            anonId,
-            ready: false,
-            phaseKey,
-            joinedAt: new Date().toISOString(),
-          })
-        }
-      })
-    return () => {
-      void channel.untrack()
-      void client.removeChannel(channel)
-    }
-  }, [anonId, groupId, groupSize, onStart, phaseKey])
+  const trimmedGroupId = groupId.trim()
+  const { ready, readyIds, markReady } = useGroupPresenceReadyGate({
+    groupId,
+    anonId,
+    groupSize,
+    channelName: `phase-gate:${trimmedGroupId}:${phaseKey}`,
+    presenceKey: `${trimmedGroupId}-${phaseKey}-${anonId}`,
+    broadcastEvent: 'phase_start',
+    getBroadcastPayload: () => ({ phaseKey, at: new Date().toISOString() }),
+    getInitialTrackPayload: (localReady) => ({
+      anonId,
+      ready: localReady,
+      phaseKey,
+      joinedAt: new Date().toISOString(),
+    }),
+    getReadyTrackPayload: () => ({
+      anonId,
+      ready: true,
+      phaseKey,
+      readyAt: new Date().toISOString(),
+    }),
+    onQuorum: onStart,
+  })
 
   return (
     <>
@@ -216,15 +208,7 @@ export function GroupPhaseStartGate({
           type="button"
           className="btn primary"
           disabled={Boolean(disabled) || ready}
-          onClick={async () => {
-            setReady(true)
-            await channelRef.current?.track({
-              anonId,
-              ready: true,
-              phaseKey,
-              readyAt: new Date().toISOString(),
-            })
-          }}
+          onClick={() => void markReady()}
         >
           {ready ? waitingLabel ?? 'Waiting for others…' : buttonLabel}
         </button>
@@ -246,84 +230,46 @@ export function GroupLobby({
 }) {
   const [onlineIds, setOnlineIds] = useState<string[]>([])
   const [duplicateAnonIds, setDuplicateAnonIds] = useState<string[]>([])
-  const [readyIds, setReadyIds] = useState<string[]>([])
-  const [ready, setReady] = useState(false)
-  const startedRef = useRef(false)
-  const channelRef = useRef<RealtimeChannel | null>(null)
+  const duplicateIdsRef = useRef<string[]>([])
+  const trimmedGroupId = groupId.trim()
 
-  useEffect(() => {
-    const client = getSupabaseClient()
-    if (!client || !groupId.trim()) return
-    const channel = client.channel(`group-lobby:${groupId.trim()}`, {
-      config: { presence: { key: `${groupId.trim()}-${anonId}` } },
-    })
-    channelRef.current = channel
-    const leaveLobby = () => {
-      void channel.untrack()
-      void client.removeChannel(channel)
-    }
-    const triggerStart = () => {
-      if (startedRef.current) return
-      startedRef.current = true
-      onStart()
-    }
-    const sync = () => {
-      const presence = channel.presenceState<Record<string, unknown>>()
-      // Supabase presence can keep multiple metas per same presence key after track updates.
-      // Normalize to "latest meta per key" to avoid false duplicate detection.
-      const latestByKey = Object.entries(presence)
-        .map(([, metas]) => {
-          const list = Array.isArray(metas) ? metas : [metas]
-          return list.length > 0 ? (list[list.length - 1] as Record<string, unknown>) : null
-        })
-        .filter((entry): entry is Record<string, unknown> => entry !== null)
-
-      const ids = latestByKey
-        .map((entry) => String(entry.anonId ?? ''))
-        .filter(Boolean)
+  const { ready, readyIds, markReady } = useGroupPresenceReadyGate({
+    groupId,
+    anonId,
+    groupSize,
+    channelName: `group-lobby:${trimmedGroupId}`,
+    presenceKey: `${trimmedGroupId}-${anonId}`,
+    broadcastEvent: 'group_start',
+    getBroadcastPayload: () => ({
+      startedAt: new Date().toISOString(),
+      triggeredBy: anonId,
+    }),
+    getInitialTrackPayload: (localReady) => ({
+      anonId,
+      ready: localReady,
+      joinedAt: new Date().toISOString(),
+    }),
+    getReadyTrackPayload: () => ({
+      anonId,
+      ready: true,
+      readyAt: new Date().toISOString(),
+    }),
+    onQuorum: onStart,
+    leaveChannelOnUnmount: true,
+    canFireQuorum: () => duplicateIdsRef.current.length === 0,
+    onPresenceMetas: (latest) => {
+      const ids = latest.map((entry) => String(entry.anonId ?? '')).filter(Boolean)
       const counts = new Map<string, number>()
       for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1)
       const duplicated = Array.from(counts.entries())
         .filter(([, n]) => n > 1)
         .map(([id]) => id)
         .sort()
-      setOnlineIds(Array.from(new Set(ids)).sort())
+      duplicateIdsRef.current = duplicated
+      setOnlineIds(uniqueGroupParticipantIds(ids))
       setDuplicateAnonIds(duplicated)
-      const readySet = latestByKey
-        .filter((entry) => Boolean(entry.ready))
-        .map((entry) => String(entry.anonId ?? ''))
-      const uniqueReady = Array.from(new Set(readySet)).sort()
-      setReadyIds(uniqueReady)
-      if (!startedRef.current && duplicated.length === 0 && uniqueReady.length >= groupSize) {
-        void channel.send({
-          type: 'broadcast',
-          event: 'group_start',
-          payload: {
-            startedAt: new Date().toISOString(),
-            triggeredBy: anonId,
-          },
-        })
-        triggerStart()
-      }
-    }
-    channel
-      .on('broadcast', { event: 'group_start' }, () => {
-        triggerStart()
-      })
-      .on('presence', { event: 'sync' }, sync)
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ anonId, ready: false, joinedAt: new Date().toISOString() })
-        }
-      })
-    window.addEventListener('pagehide', leaveLobby)
-    window.addEventListener('beforeunload', leaveLobby)
-    return () => {
-      window.removeEventListener('pagehide', leaveLobby)
-      window.removeEventListener('beforeunload', leaveLobby)
-      leaveLobby()
-    }
-  }, [anonId, groupId, groupSize, onStart])
+    },
+  })
 
   return (
     <div className="card">
@@ -347,14 +293,7 @@ export function GroupLobby({
           type="button"
           className="btn primary"
           disabled={ready}
-          onClick={async () => {
-            setReady(true)
-            await channelRef.current?.track({
-              anonId,
-              ready: true,
-              readyAt: new Date().toISOString(),
-            })
-          }}
+          onClick={() => void markReady()}
         >
           {ready ? 'Waiting for others…' : 'I am ready'}
         </button>
@@ -375,10 +314,11 @@ export function GroupSoloMemoryWaitGate({
   groupSize: number
   onProceed: () => void
 }) {
-  const [doneIds, setDoneIds] = useState<string[]>([])
+  const [doneIds, setDoneIds] = useState<GroupParticipantId[]>(() => [anonId])
   const proceededRef = useRef(false)
   const onProceedRef = useRef(onProceed)
   onProceedRef.current = onProceed
+  const localSoloDoneRef = useRef(true)
 
   useEffect(() => {
     const client = getSupabaseClient()
@@ -386,6 +326,7 @@ export function GroupSoloMemoryWaitGate({
 
     /** Union of everyone we've heard from via presence or ping (presence sync can lag per client). */
     const heard = new Set<string>([anonId])
+    const subscribedRef = { current: false }
 
     const triggerProceed = () => {
       if (proceededRef.current) return
@@ -398,22 +339,23 @@ export function GroupSoloMemoryWaitGate({
     })
 
     const sendPing = () => {
-      void channel.send({
-        type: 'broadcast',
-        event: 'solo_wait_ping',
-        payload: { anonId, at: new Date().toISOString() },
+      broadcastViaChannel(channel, subscribedRef.current, 'solo_wait_ping', {
+        anonId,
+        at: new Date().toISOString(),
       })
     }
 
     const mergeAndUpdate = () => {
-      for (const id of presenceAnonIds(channel)) heard.add(id)
-      const unique = Array.from(heard).sort()
+      const presence = channel.presenceState<Record<string, unknown[] | unknown>>()
+      for (const id of presenceParticipantIds(presence)) heard.add(id)
+      const unique = uniqueGroupParticipantIds(heard)
       setDoneIds(unique)
-      if (!proceededRef.current && unique.length >= groupSize) {
-        void channel.send({
-          type: 'broadcast',
-          event: 'memory_solo_all_done',
-          payload: { at: new Date().toISOString(), triggeredBy: anonId },
+      if (!proceededRef.current && hasGroupQuorum(unique, groupSize)) {
+        scheduleBroadcastRetries(() => {
+          broadcastViaChannel(channel, subscribedRef.current, 'memory_solo_all_done', {
+            at: new Date().toISOString(),
+            triggeredBy: anonId,
+          })
         })
         triggerProceed()
       }
@@ -426,7 +368,7 @@ export function GroupSoloMemoryWaitGate({
       .on('broadcast', { event: 'solo_wait_ping' }, ({ payload }) => {
         const p = payload as { anonId?: string } | undefined
         const id = String(p?.anonId ?? '')
-        if (id) heard.add(id)
+        if (GROUP_PARTICIPANT_IDS.includes(id as GroupParticipantId)) heard.add(id)
         mergeAndUpdate()
       })
       .on('presence', { event: 'sync' }, () => {
@@ -440,15 +382,20 @@ export function GroupSoloMemoryWaitGate({
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          subscribedRef.current = true
           await channel.track({
             anonId,
-            soloMemoryWait: true,
+            soloMemoryWait: localSoloDoneRef.current,
             joinedAt: new Date().toISOString(),
           })
+          heard.add(anonId)
           sendPing()
+          mergeAndUpdate()
           queueMicrotask(mergeAndUpdate)
           window.setTimeout(mergeAndUpdate, 50)
           window.setTimeout(mergeAndUpdate, 250)
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          subscribedRef.current = false
         }
       })
 
@@ -489,8 +436,8 @@ export function GroupMemoryPhase({
   groupId,
   anonId,
   groupSize,
+  sessionId,
   durationSec,
-  prompt,
   participantId,
   onLog,
   onMessagePersist,
@@ -506,8 +453,8 @@ export function GroupMemoryPhase({
   groupId: string
   anonId: AnonId
   groupSize: number
+  sessionId: string
   durationSec: number
-  prompt?: string
   participantId?: string
   onLog: (t: string, p?: Record<string, unknown>) => void
   onMessagePersist: (m: DiscussionMessage) => void
@@ -523,128 +470,809 @@ export function GroupMemoryPhase({
   const [confidence, setConfidence] = useState<number | null>(null)
   const [messages, setMessages] = useState<DiscussionMessage[]>([])
   const [answeredIds, setAnsweredIds] = useState<string[]>([])
+  const [endDiscussionVotes, setEndDiscussionVotes] = useState<string[]>([])
+  const [votedToEndDiscussion, setVotedToEndDiscussion] = useState(false)
   const [submittedThisStep, setSubmittedThisStep] = useState(false)
-  const [advanceForStep, setAdvanceForStep] = useState<number | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const sentAdvanceForStepRef = useRef<number | null>(null)
-  const appliedAdvanceForStepRef = useRef<number>(-1)
-  const advancedStepRef = useRef<number>(-1)
+  /** Last presentation step we have already advanced past (prevents double step++). */
+  const advancedPastStepRef = useRef<number>(-1)
+  /** Which step `answeredIds` belong to; blocks stale quorum after step++. */
+  const answersForStepRef = useRef(0)
+  const stepRef = useRef(step)
+  stepRef.current = step
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const appliedDiscussionEndRef = useRef<number>(-1)
+  const sentDiscussionEndRef = useRef<number | null>(null)
+  /** End-discussion votes belong to this step only (blocks stale votes after step++). */
+  const endVotesForStepRef = useRef(-1)
+  /** True after the countdown has ticked for the current step (blocks stale left===0). */
+  const discussionTimerArmedRef = useRef(false)
   const submittedStepRef = useRef<number | null>(null)
   const lastSkipSignalRef = useRef<number>(0)
+  const onMessagePersistRef = useRef(onMessagePersist)
+  onMessagePersistRef.current = onMessagePersist
+  const onLogRef = useRef(onLog)
+  onLogRef.current = onLog
+  const participantIdRef = useRef(participantId)
+  participantIdRef.current = participantId
+  const channelReadyRef = useRef(false)
+  /** Step index we voted to end (presence survives channel hiccups). */
+  const localEndVoteStepRef = useRef<number | null>(null)
+  /** Monotonic vote set for current step — never shrink on partial presence snapshots. */
+  const endVoteIdsRef = useRef<GroupParticipantId[]>([])
+  /** Monotonic answer set for current step — never shrink on partial presence snapshots. */
+  const answeredIdsRef = useRef<GroupParticipantId[]>([])
+  const localAnswerDoneStepRef = useRef<number | null>(null)
+  const peerProgressRef = useRef<Map<string, GroupMemoryProgressPayload>>(new Map())
+  // Session IDs advertised by every connected client (incl. self). Used to scope DB-backed
+  // quorum queries to the CURRENT run only — without this filter, rows from a previous test
+  // with the same `group_id` would erroneously satisfy quorum on a fresh run.
+  const peerSessionIdsRef = useRef<Set<string>>(new Set([sessionId]))
+  const configItemIndexAtPresentationRef = useRef(configItemIndexAtPresentation)
+  configItemIndexAtPresentationRef.current = configItemIndexAtPresentation
+  const submittedThisStepRef = useRef(submittedThisStep)
+  submittedThisStepRef.current = submittedThisStep
   const item = items[step]
   const total = durationSec > 0 ? durationSec : 1
   const progressPct = Math.min(100, Math.max(0, Math.round(((total - left) / total) * 100)))
   const participantChatStyle = useMemo(() => buildParticipantChatStyle(groupId, step), [groupId, step])
+  const uniqueEndVotes = useMemo(
+    () => uniqueGroupParticipantIds(endDiscussionVotes),
+    [endDiscussionVotes],
+  )
+  const uniqueAnsweredIds = useMemo(() => uniqueGroupParticipantIds(answeredIds), [answeredIds])
+
+  const tryAdvanceFromStep = useCallback(
+    (fromStep: number): boolean => {
+      const currentStep = stepRef.current
+      if (fromStep !== currentStep) return false
+      if (fromStep <= advancedPastStepRef.current) return false
+      advancedPastStepRef.current = fromStep
+      const nextStep = fromStep + 1
+
+      // Clear quorum before setStep: on the next render, phase/answeredIds can still
+      // reflect the previous step for one effect pass and would trigger a second advance.
+      answersForStepRef.current = -1
+      endVotesForStepRef.current = -1
+      answeredIdsRef.current = []
+      setAnsweredIds([])
+      endVoteIdsRef.current = []
+      localAnswerDoneStepRef.current = null
+      setEndDiscussionVotes([])
+      setVotedToEndDiscussion(false)
+      localEndVoteStepRef.current = null
+      setSubmittedThisStep(false)
+      sentAdvanceForStepRef.current = null
+      appliedDiscussionEndRef.current = -1
+      sentDiscussionEndRef.current = null
+      discussionTimerArmedRef.current = false
+
+      if (nextStep >= items.length) {
+        onComplete()
+        return true
+      }
+      peerProgressRef.current.clear()
+      setLeft(durationSec)
+      setPhase('discussion')
+      setStep(nextStep)
+      queueMicrotask(() => broadcastMyProgressWithRetriesRef.current())
+      return true
+    },
+    [durationSec, items.length, onComplete],
+  )
+
+  const mergeRemoteMessages = useCallback((incoming: DiscussionMessage[]) => {
+    if (incoming.length === 0) return
+    setMessages((prev) => {
+      let next = prev
+      for (const m of incoming) {
+        if (m.questionIndex !== stepRef.current) continue
+        next = appendDiscussionMessage(next, m)
+        onMessagePersistRef.current(m)
+      }
+      return next
+    })
+  }, [])
+
+  const refreshMessagesFromDb = useCallback(async () => {
+    const client = getSupabaseClient()
+    if (!client || !sessionId.trim() || !groupId.trim()) return
+    const currentStep = stepRef.current
+    const slideId = items[currentStep]?.slideId
+    if (!slideId) return
+    const fetched = await fetchDiscussionMessagesForQuestion(
+      client,
+      groupId,
+      currentStep,
+      slideId,
+    )
+    mergeRemoteMessages(fetched)
+  }, [groupId, items, mergeRemoteMessages, sessionId])
+
+  const endDiscussionForStep = useCallback(
+    (forStep: number, via: string, shouldBroadcast: boolean) => {
+      const currentStep = stepRef.current
+      if (forStep !== currentStep) return
+
+      if (appliedDiscussionEndRef.current === currentStep) {
+        if (phaseRef.current === 'discussion') {
+          setPhase('answer')
+          setLeft(0)
+        }
+        return
+      }
+
+      appliedDiscussionEndRef.current = currentStep
+      const slideId = itemsRef.current[currentStep]?.slideId
+      onLogRef.current('group_discussion_ended_by_vote', {
+        step: currentStep,
+        slideId,
+        groupId: groupId.trim(),
+        anonId,
+        via,
+        voters: endVoteIdsRef.current,
+      })
+      setPhase('answer')
+      setLeft(0)
+      broadcastMyProgressWithRetriesRef.current()
+
+      // DB-backed fallback: persist the fact that THIS client ended discussion at this step.
+      // Lagging peers poll the table and follow regardless of broadcast / presence health.
+      const client = getSupabaseClient()
+      if (client && groupId.trim()) {
+        void recordGroupStepSignal(client, {
+          groupId,
+          sessionId,
+          presentationIndex: currentStep,
+          signalType: 'discussion_end',
+          anonId,
+        })
+      }
+
+      if (!shouldBroadcast) return
+      if (sentDiscussionEndRef.current === currentStep) return
+      sentDiscussionEndRef.current = currentStep
+
+      scheduleBroadcastRetries(
+        () => {
+          broadcastViaChannel(
+            channelRef.current,
+            channelReadyRef.current,
+            'discussion_end',
+            { step: currentStep, at: new Date().toISOString() },
+          )
+        },
+        GROUP_BROADCAST_RETRY_DELAYS_MS,
+      )
+    },
+    [anonId, groupId, sessionId],
+  )
+
+  const maybeEndDiscussionFromQuorum = useCallback(() => {
+    if (phaseRef.current !== 'discussion') return
+    const currentStep = stepRef.current
+    if (endVotesForStepRef.current !== currentStep) return
+    if (!hasGroupQuorum(endVoteIdsRef.current, groupSize)) return
+    endDiscussionForStep(currentStep, 'local_quorum', true)
+  }, [endDiscussionForStep, groupSize])
+
+  const applyEndVotes = useCallback(
+    (incoming: Iterable<string>) => {
+      const currentStep = stepRef.current
+      const merged = uniqueGroupParticipantIds([...endVoteIdsRef.current, ...incoming])
+      const prevKey = endVoteIdsRef.current.join('|')
+      const nextKey = merged.join('|')
+      if (prevKey === nextKey) return merged
+      endVoteIdsRef.current = merged
+      endVotesForStepRef.current = currentStep
+      setEndDiscussionVotes(merged)
+      if (merged.includes(anonId)) {
+        setVotedToEndDiscussion(true)
+        localEndVoteStepRef.current = currentStep
+      }
+      maybeEndDiscussionFromQuorum()
+      return merged
+    },
+    [anonId, maybeEndDiscussionFromQuorum],
+  )
+
+  const advanceStepFromAnswerQuorum = useCallback(
+    (forStep: number, via: string, shouldBroadcast: boolean) => {
+      const currentStep = stepRef.current
+      if (forStep !== currentStep) return
+      if (phaseRef.current !== 'answer') return
+      if (currentStep <= advancedPastStepRef.current) return
+
+      const fromPeerSignal =
+        via === 'advance_step_broadcast' || via === 'db_poll_peer_advance'
+      if (!fromPeerSignal && !hasGroupQuorum(answeredIdsRef.current, groupSize)) return
+
+      const didAdvance = tryAdvanceFromStep(forStep)
+      if (!didAdvance) return
+
+      // DB-backed fallback so lagging clients can follow even when the broadcast is lost.
+      const client = getSupabaseClient()
+      if (client && groupId.trim()) {
+        void recordGroupStepSignal(client, {
+          groupId,
+          sessionId,
+          presentationIndex: forStep,
+          signalType: 'step_advance',
+          anonId,
+        })
+      }
+
+      if (!shouldBroadcast) return
+      if (sentAdvanceForStepRef.current === forStep) return
+      sentAdvanceForStepRef.current = forStep
+
+      scheduleBroadcastRetries(
+        () => {
+          broadcastViaChannel(
+            channelRef.current,
+            channelReadyRef.current,
+            'advance_step',
+            { step: forStep, nextStep: forStep + 1, at: new Date().toISOString() },
+          )
+        },
+        GROUP_BROADCAST_RETRY_DELAYS_MS,
+      )
+    },
+    [anonId, groupId, groupSize, sessionId, tryAdvanceFromStep],
+  )
+
+  const maybeAdvanceFromAnswerQuorum = useCallback(() => {
+    advanceStepFromAnswerQuorum(stepRef.current, 'local_quorum', true)
+  }, [advanceStepFromAnswerQuorum])
+
+  const applyAnsweredIds = useCallback(
+    (incoming: Iterable<string>) => {
+      const currentStep = stepRef.current
+      const merged = uniqueGroupParticipantIds([...answeredIdsRef.current, ...incoming])
+      const prevKey = answeredIdsRef.current.join('|')
+      const nextKey = merged.join('|')
+      if (prevKey === nextKey) return merged
+      answeredIdsRef.current = merged
+      answersForStepRef.current = currentStep
+      setAnsweredIds(merged)
+      maybeAdvanceFromAnswerQuorum()
+      return merged
+    },
+    [maybeAdvanceFromAnswerQuorum],
+  )
+
+  const syncProgressFromPresence = useCallback(
+    (channel: RealtimeChannel) => {
+      const currentStep = stepRef.current
+      const presence = channel.presenceState<Record<string, unknown[] | unknown>>()
+      const latest = presenceLatestMetas(presence)
+
+      // Accumulate known session IDs. We deliberately DO NOT replace the set on each sync —
+      // if a peer's presence transiently drops (network blip, Supabase grace period), losing
+      // their sessionId would permanently exclude their `study_submissions` / `group_step_signals`
+      // rows from quorum and deadlock the run. Once we have seen a sessionId, we keep it.
+      peerSessionIdsRef.current.add(sessionId)
+      for (const entry of latest) {
+        const sid = String((entry as { sessionId?: unknown }).sessionId ?? '').trim()
+        if (sid) peerSessionIdsRef.current.add(sid)
+      }
+
+      // IMPORTANT: a participant whose presence has `endVoteForStep: null` (never voted yet)
+      // must NOT count as a step-0 voter. `Number(null) === 0` is true in JS, so the previous
+      // `Number(entry.endVoteForStep) === currentStep` check silently treated every fresh peer
+      // as having voted to end discussion at step 0 — which auto-skipped the very first
+      // discussion and answer phase. Same trap applies to `answerDoneForStep`. The strict
+      // `typeof === 'number'` guard rejects null/undefined explicitly.
+      const fromVotePresence = uniqueGroupParticipantIds(
+        latest
+          .filter((entry) => {
+            const v = (entry as { endVoteForStep?: unknown }).endVoteForStep
+            return typeof v === 'number' && v === currentStep
+          })
+          .map((entry) => String(entry.anonId ?? '')),
+      )
+      if (fromVotePresence.length > 0) applyEndVotes(fromVotePresence)
+
+      const fromAnswerPresence = uniqueGroupParticipantIds(
+        latest
+          .filter((entry) => {
+            const v = (entry as { answerDoneForStep?: unknown }).answerDoneForStep
+            return typeof v === 'number' && v === currentStep
+          })
+          .map((entry) => String(entry.anonId ?? '')),
+      )
+      if (fromAnswerPresence.length > 0) applyAnsweredIds(fromAnswerPresence)
+
+      maybeEndDiscussionFromQuorum()
+      maybeAdvanceFromAnswerQuorum()
+    },
+    [
+      applyAnsweredIds,
+      applyEndVotes,
+      maybeAdvanceFromAnswerQuorum,
+      maybeEndDiscussionFromQuorum,
+      sessionId,
+    ],
+  )
+
+  const buildMyProgressPayload = useCallback((): GroupMemoryProgressPayload => {
+    return {
+      anonId,
+      step: stepRef.current,
+      phase: phaseRef.current,
+      endVoteForStep: localEndVoteStepRef.current,
+      answerDoneForStep: localAnswerDoneStepRef.current,
+      at: new Date().toISOString(),
+    }
+  }, [anonId])
+
+  const broadcastMyProgress = useCallback(() => {
+    broadcastViaChannel(
+      channelRef.current,
+      channelReadyRef.current,
+      'group_progress',
+      buildMyProgressPayload(),
+    )
+  }, [buildMyProgressPayload])
+
+  const broadcastMyProgressWithRetries = useCallback(() => {
+    scheduleBroadcastRetries(broadcastMyProgress, [200, 600, 1200])
+  }, [broadcastMyProgress])
+
+  const reconcileFromPeerProgress = useCallback(() => {
+    const currentStep = stepRef.current
+    const peers = [...peerProgressRef.current.values()].filter((p) => p.anonId !== anonId)
+
+    const endVoters = uniqueGroupParticipantIds(
+      peers
+        .filter((p) => p.endVoteForStep === currentStep)
+        .map((p) => p.anonId)
+        .concat(localEndVoteStepRef.current === currentStep ? [anonId] : []),
+    )
+    if (endVoters.length > 0) applyEndVotes(endVoters)
+
+    const answerers = uniqueGroupParticipantIds(
+      peers
+        .filter((p) => p.answerDoneForStep === currentStep)
+        .map((p) => p.anonId)
+        .concat(localAnswerDoneStepRef.current === currentStep ? [anonId] : []),
+    )
+    if (answerers.length > 0) applyAnsweredIds(answerers)
+
+    if (phaseRef.current === 'discussion') {
+      const peersInAnswerOnStep = peers.filter(
+        (p) => p.step === currentStep && p.phase === 'answer',
+      ).length
+      if (peersInAnswerOnStep >= groupSize - 1) {
+        endDiscussionForStep(currentStep, 'peer_progress_phase', false)
+      }
+    }
+
+    if (phaseRef.current === 'answer') {
+      const peersAhead = peers.filter((p) => p.step > currentStep).length
+      if (peersAhead >= groupSize - 1) {
+        advanceStepFromAnswerQuorum(currentStep, 'peer_progress_step', false)
+      }
+    }
+
+    maybeEndDiscussionFromQuorum()
+    maybeAdvanceFromAnswerQuorum()
+  }, [
+    advanceStepFromAnswerQuorum,
+    anonId,
+    applyAnsweredIds,
+    applyEndVotes,
+    endDiscussionForStep,
+    groupSize,
+    maybeAdvanceFromAnswerQuorum,
+    maybeEndDiscussionFromQuorum,
+  ])
+
+  const syncRealtimeProgress = useCallback(
+    (channel: RealtimeChannel) => {
+      syncProgressFromPresence(channel)
+      reconcileFromPeerProgress()
+    },
+    [reconcileFromPeerProgress, syncProgressFromPresence],
+  )
+
+  const applyEndVotesRef = useRef(applyEndVotes)
+  applyEndVotesRef.current = applyEndVotes
+  const applyAnsweredIdsRef = useRef(applyAnsweredIds)
+  applyAnsweredIdsRef.current = applyAnsweredIds
+  const maybeEndDiscussionFromQuorumRef = useRef(maybeEndDiscussionFromQuorum)
+  maybeEndDiscussionFromQuorumRef.current = maybeEndDiscussionFromQuorum
+  const maybeAdvanceFromAnswerQuorumRef = useRef(maybeAdvanceFromAnswerQuorum)
+  maybeAdvanceFromAnswerQuorumRef.current = maybeAdvanceFromAnswerQuorum
+  const advanceStepFromAnswerQuorumRef = useRef(advanceStepFromAnswerQuorum)
+  advanceStepFromAnswerQuorumRef.current = advanceStepFromAnswerQuorum
+  const endDiscussionForStepRef = useRef(endDiscussionForStep)
+  endDiscussionForStepRef.current = endDiscussionForStep
+  const tryAdvanceFromStepRef = useRef(tryAdvanceFromStep)
+  tryAdvanceFromStepRef.current = tryAdvanceFromStep
+  const syncRealtimeProgressRef = useRef(syncRealtimeProgress)
+  syncRealtimeProgressRef.current = syncRealtimeProgress
+  const reconcileFromPeerProgressRef = useRef(reconcileFromPeerProgress)
+  reconcileFromPeerProgressRef.current = reconcileFromPeerProgress
+  const broadcastMyProgressRef = useRef(broadcastMyProgress)
+  broadcastMyProgressRef.current = broadcastMyProgress
+  const broadcastMyProgressWithRetriesRef = useRef(broadcastMyProgressWithRetries)
+  broadcastMyProgressWithRetriesRef.current = broadcastMyProgressWithRetries
 
   useEffect(() => {
+    if (phase !== 'discussion') return
+    void refreshMessagesFromDb()
+    const pollId = window.setInterval(() => void refreshMessagesFromDb(), 1500)
+    return () => window.clearInterval(pollId)
+  }, [phase, refreshMessagesFromDb, step])
+
+  useEffect(() => {
+    answersForStepRef.current = step
+    endVotesForStepRef.current = step
+    discussionTimerArmedRef.current = false
     setPhase('discussion')
     setLeft(durationSec)
     setMessages([])
+    answeredIdsRef.current = []
     setAnsweredIds([])
+    endVoteIdsRef.current = []
+    setEndDiscussionVotes([])
+    setVotedToEndDiscussion(false)
+    localEndVoteStepRef.current = null
+    localAnswerDoneStepRef.current = null
+    peerProgressRef.current.clear()
+    appliedDiscussionEndRef.current = -1
+    sentDiscussionEndRef.current = null
+    sentAdvanceForStepRef.current = null
     setSubmittedThisStep(false)
-    setAdvanceForStep(null)
     setRecall(responses[step]?.recall ?? null)
     setConfidence(responses[step]?.confidence ?? null)
   }, [durationSec, step])
 
   useEffect(() => {
     if (phase !== 'discussion' || left <= 0) return
+    discussionTimerArmedRef.current = true
     const id = window.setTimeout(() => setLeft((v) => v - 1), 1000)
     return () => window.clearTimeout(id)
   }, [phase, left])
 
   useEffect(() => {
-    if (phase === 'discussion' && left <= 0) {
-      onLog('group_discussion_timeout', { step, slideId: item.slideId })
-      setPhase('answer')
+    if (phase !== 'discussion' || left > 0) return
+    if (!discussionTimerArmedRef.current) return
+    if (appliedDiscussionEndRef.current === step) return
+    appliedDiscussionEndRef.current = step
+    onLog('group_discussion_timeout', { step, slideId: item.slideId })
+    setLeft(0)
+    setPhase('answer')
+    const client = getSupabaseClient()
+    if (client && groupId.trim()) {
+      void recordGroupStepSignal(client, {
+        groupId,
+        sessionId,
+        presentationIndex: step,
+        signalType: 'discussion_end',
+        anonId,
+      })
     }
-  }, [item.slideId, left, onLog, phase, step])
+  }, [anonId, groupId, item.slideId, left, onLog, phase, sessionId, step])
+
+  const voteToEndDiscussion = () => {
+    if (phase !== 'discussion' || votedToEndDiscussion) return
+    const currentStep = stepRef.current
+    applyEndVotes([anonId])
+    const channel = channelRef.current
+    if (channel) {
+      void channel
+        .track({
+          anonId,
+          sessionId,
+          endVoteForStep: currentStep,
+          endVoteAt: new Date().toISOString(),
+        })
+        .then(() => {
+          syncRealtimeProgress(channel)
+          broadcastMyProgressWithRetries()
+        })
+    }
+    scheduleBroadcastRetries(
+      () => {
+        broadcastViaChannel(
+          channelRef.current,
+          channelReadyRef.current,
+          'end_discussion_vote',
+          { step: currentStep, anonId, at: new Date().toISOString() },
+        )
+      },
+      GROUP_BROADCAST_RETRY_DELAYS_MS,
+    )
+    broadcastMyProgressWithRetries()
+    const client = getSupabaseClient()
+    if (client && groupId.trim()) {
+      void recordGroupStepSignal(client, {
+        groupId,
+        sessionId,
+        presentationIndex: currentStep,
+        signalType: 'end_vote',
+        anonId,
+      })
+    }
+    maybeEndDiscussionFromQuorum()
+  }
 
   useEffect(() => {
     const client = getSupabaseClient()
-    if (!client) return
-    const channel = client.channel(`memory-discussion:${groupId}:${step}`)
+    if (!client || !groupId.trim()) return
+    const trimmedGroupId = groupId.trim()
+    const channel = client.channel(`memory-discussion:${trimmedGroupId}`, {
+      config: { presence: { key: `${trimmedGroupId}-${anonId}` } },
+    })
     channelRef.current = channel
+    channelReadyRef.current = false
+
     channel
       .on('broadcast', { event: 'message' }, ({ payload }) => {
         const incoming = payload as DiscussionMessage
-        setMessages((prev) => [...prev, incoming])
-        onMessagePersist(incoming)
+        if (incoming.questionIndex !== stepRef.current) return
+        if (incoming.anonId === anonId) return
+        setMessages((prev) => appendDiscussionMessage(prev, incoming))
+        onMessagePersistRef.current(incoming)
+      })
+      .on('broadcast', { event: 'group_progress' }, ({ payload }) => {
+        const incoming = payload as GroupMemoryProgressPayload
+        if (!incoming?.anonId || incoming.anonId === anonId) return
+        if (!GROUP_PARTICIPANT_IDS.includes(incoming.anonId as GroupParticipantId)) return
+        peerProgressRef.current.set(incoming.anonId, incoming)
+        reconcileFromPeerProgressRef.current()
       })
       .on('broadcast', { event: 'answer_done' }, ({ payload }) => {
         const typedPayload = payload as Record<string, unknown> | undefined
         const forStep = Number(typedPayload?.step ?? -1)
-        if (forStep !== step) return
+        if (forStep !== stepRef.current) return
         const id = String(typedPayload?.anonId ?? '')
-        if (!id) return
-        setAnsweredIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+        if (!GROUP_PARTICIPANT_IDS.includes(id as GroupParticipantId)) return
+        applyAnsweredIdsRef.current([id])
+        maybeAdvanceFromAnswerQuorumRef.current()
+      })
+      .on('broadcast', { event: 'end_discussion_vote' }, ({ payload }) => {
+        const typedPayload = payload as Record<string, unknown> | undefined
+        const forStep = Number(typedPayload?.step ?? -1)
+        if (forStep !== stepRef.current) return
+        const id = String(typedPayload?.anonId ?? '')
+        if (!GROUP_PARTICIPANT_IDS.includes(id as GroupParticipantId)) return
+        applyEndVotesRef.current([id])
+      })
+      .on('presence', { event: 'sync' }, () => {
+        syncRealtimeProgressRef.current(channel)
+      })
+      .on('broadcast', { event: 'discussion_end' }, ({ payload }) => {
+        const typedPayload = payload as Record<string, unknown> | undefined
+        const forStep = Number(typedPayload?.step ?? -1)
+        if (!Number.isFinite(forStep)) return
+        endDiscussionForStepRef.current(forStep, 'discussion_end_broadcast', false)
       })
       .on('broadcast', { event: 'advance_step' }, ({ payload }) => {
         const typedPayload = payload as Record<string, unknown> | undefined
         const forStep = Number(typedPayload?.step ?? -1)
-        if (forStep !== step) return
-        if (forStep <= appliedAdvanceForStepRef.current) return
-        appliedAdvanceForStepRef.current = forStep
-        setAdvanceForStep(forStep)
+        if (!Number.isFinite(forStep)) return
+        advanceStepFromAnswerQuorumRef.current(forStep, 'advance_step_broadcast', false)
       })
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          onLog('group_discussion_join', {
-            groupId,
-            step,
-            configItemIndex: configItemIndexAtPresentation[step],
-            slideId: item.slideId,
+          channelReadyRef.current = true
+          const currentStep = stepRef.current
+          await channel.track({
+            anonId,
+            sessionId,
+            step: currentStep,
+            phase: phaseRef.current,
+            endVoteForStep: localEndVoteStepRef.current,
+            answerDoneForStep: localAnswerDoneStepRef.current,
+            joinedAt: new Date().toISOString(),
+          })
+          syncRealtimeProgressRef.current(channel)
+          broadcastMyProgressWithRetriesRef.current()
+          if (localEndVoteStepRef.current === currentStep) {
+            scheduleBroadcastRetries(
+              () => {
+                broadcastViaChannel(
+                  channel,
+                  channelReadyRef.current,
+                  'end_discussion_vote',
+                  { step: currentStep, anonId, at: new Date().toISOString() },
+                )
+              },
+              GROUP_BROADCAST_RETRY_DELAYS_MS,
+            )
+          }
+          if (localAnswerDoneStepRef.current === currentStep) {
+            scheduleBroadcastRetries(
+              () => {
+                broadcastViaChannel(
+                  channel,
+                  channelReadyRef.current,
+                  'answer_done',
+                  {
+                    step: currentStep,
+                    anonId,
+                    answeredAt: new Date().toISOString(),
+                  },
+                )
+              },
+              GROUP_BROADCAST_RETRY_DELAYS_MS,
+            )
+          }
+          maybeEndDiscussionFromQuorumRef.current()
+          maybeAdvanceFromAnswerQuorumRef.current()
+          onLogRef.current('group_discussion_join', {
+            groupId: trimmedGroupId,
+            step: currentStep,
+            configItemIndex: configItemIndexAtPresentationRef.current[currentStep],
+            slideId: itemsRef.current[currentStep]?.slideId,
             anonId,
           })
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          channelReadyRef.current = false
         }
       })
     return () => {
+      channelReadyRef.current = false
+      void channel.untrack()
       void client.removeChannel(channel)
     }
-  }, [anonId, groupId, item.slideId, onLog, step, configItemIndexAtPresentation])
+  }, [anonId, groupId])
 
   useEffect(() => {
-    if (!submittedThisStep || phase !== 'answer') return
-    if (advanceForStep === step) return
-    if (submittedStepRef.current !== step) return
-    if (answeredIds.length < groupSize) return
-    const coordinator = [...answeredIds].sort()[0]
-    if (anonId !== coordinator) return
-    if (sentAdvanceForStepRef.current === step) return
-    sentAdvanceForStepRef.current = step
-    appliedAdvanceForStepRef.current = step
-    setAdvanceForStep(step)
-    void channelRef.current?.send({
-      type: 'broadcast',
-      event: 'advance_step',
-      payload: {
-        step,
-        nextStep: step + 1,
-        at: new Date().toISOString(),
-      },
+    maybeEndDiscussionFromQuorum()
+  }, [maybeEndDiscussionFromQuorum, phase, step, uniqueEndVotes.length])
+
+  useEffect(() => {
+    maybeAdvanceFromAnswerQuorum()
+  }, [maybeAdvanceFromAnswerQuorum, phase, step, uniqueAnsweredIds.length])
+
+  useEffect(() => {
+    const tick = () => {
+      const ch = channelRef.current
+      if (!ch) return
+      syncRealtimeProgressRef.current(ch)
+      broadcastMyProgressRef.current()
+      if (phaseRef.current === 'discussion') {
+        maybeEndDiscussionFromQuorumRef.current()
+      } else if (phaseRef.current === 'answer') {
+        advanceStepFromAnswerQuorumRef.current(stepRef.current, 'answer_recovery_tick', true)
+      }
+    }
+    tick()
+    const id = window.setInterval(tick, GROUP_SYNC_TICK_MS)
+    return () => window.clearInterval(id)
+  }, [phase, step])
+
+  useEffect(() => {
+    broadcastMyProgressWithRetries()
+  }, [broadcastMyProgressWithRetries, phase, step])
+
+  useEffect(() => {
+    const channel = channelRef.current
+    if (!channel || !channelReadyRef.current) return
+    void channel.track({
+      anonId,
+      sessionId,
+      step: stepRef.current,
+      phase: phaseRef.current,
+      endVoteForStep: localEndVoteStepRef.current,
+      answerDoneForStep: localAnswerDoneStepRef.current,
+      progressAt: new Date().toISOString(),
     })
-  }, [submittedThisStep, phase, advanceForStep, answeredIds, groupSize, step, anonId])
+    broadcastMyProgressWithRetriesRef.current()
+  }, [anonId, phase, sessionId, step])
 
   useEffect(() => {
-    if (advanceForStep === null) return
-    if (advanceForStep < step) {
-      setAdvanceForStep(null)
-      return
+    if (phase !== 'answer') return
+    const client = getSupabaseClient()
+    if (!client || !groupId.trim()) return
+    let cancelled = false
+    const tick = async () => {
+      const stepAtRequest = stepRef.current
+      const knownSessionIds = [...peerSessionIdsRef.current]
+      const answered = await fetchAnsweredAnonIdsForStep(client, {
+        groupId,
+        sessionIds: knownSessionIds,
+        presentationIndex: stepAtRequest,
+        memoryRound: 'post_discussion',
+      })
+      if (cancelled) return
+      if (stepAtRequest !== stepRef.current) return
+      if (answered.length === 0) return
+      applyAnsweredIdsRef.current(answered)
+      maybeAdvanceFromAnswerQuorumRef.current()
     }
-    if (advanceForStep !== step) return
-    if (advancedStepRef.current === step) {
-      setAdvanceForStep(null)
-      return
+    void tick()
+    const id = window.setInterval(() => void tick(), 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
     }
-    advancedStepRef.current = step
-    if (step + 1 >= items.length) {
-      setAdvanceForStep(null)
-      onComplete()
-      return
+  }, [groupId, phase, step])
+
+  // DB-backed fallback for end-of-discussion sync. Realtime broadcasts can be dropped
+  // or rate-limited, so we also persist (a) each vote and (b) the fact that ANY peer
+  // finalised the discussion. A lagging client follows as soon as either condition is
+  // visible in the DB, even if WS / presence sync goes silent for them.
+  useEffect(() => {
+    if (phase !== 'discussion') return
+    const client = getSupabaseClient()
+    if (!client || !groupId.trim()) return
+    let cancelled = false
+    const tick = async () => {
+      const stepAtRequest = stepRef.current
+      const knownSessionIds = [...peerSessionIdsRef.current]
+      const [voters, enders] = await Promise.all([
+        fetchGroupStepSignalAnons(client, {
+          groupId,
+          sessionIds: knownSessionIds,
+          presentationIndex: stepAtRequest,
+          signalType: 'end_vote',
+        }),
+        fetchGroupStepSignalAnons(client, {
+          groupId,
+          sessionIds: knownSessionIds,
+          presentationIndex: stepAtRequest,
+          signalType: 'discussion_end',
+        }),
+      ])
+      if (cancelled) return
+      if (stepAtRequest !== stepRef.current) return
+      if (phaseRef.current !== 'discussion') return
+      if (voters.length > 0) {
+        applyEndVotesRef.current(voters)
+        maybeEndDiscussionFromQuorumRef.current()
+      }
+      if (enders.length > 0) {
+        // At least one peer has already ended this discussion -> follow them.
+        endDiscussionForStepRef.current(stepAtRequest, 'db_poll_peer_end', false)
+      }
     }
-    setAdvanceForStep(null)
-    setStep(advanceForStep + 1)
-  }, [advanceForStep, items.length, onComplete, step])
+    void tick()
+    const id = window.setInterval(() => void tick(), 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [groupId, phase, step])
+
+  // DB-backed fallback for step advance during the answer phase. If any peer has already
+  // advanced past the current step (recorded as a `step_advance` signal), this client should
+  // follow even when its WS / presence sync is silent.
+  useEffect(() => {
+    if (phase !== 'answer') return
+    const client = getSupabaseClient()
+    if (!client || !groupId.trim()) return
+    let cancelled = false
+    const tick = async () => {
+      const stepAtRequest = stepRef.current
+      const knownSessionIds = [...peerSessionIdsRef.current]
+      const advancers = await fetchGroupStepSignalAnons(client, {
+        groupId,
+        sessionIds: knownSessionIds,
+        presentationIndex: stepAtRequest,
+        signalType: 'step_advance',
+      })
+      if (cancelled) return
+      if (stepAtRequest !== stepRef.current) return
+      if (phaseRef.current !== 'answer') return
+      if (advancers.length === 0) return
+      advanceStepFromAnswerQuorumRef.current(stepAtRequest, 'db_poll_peer_advance', false)
+    }
+    void tick()
+    const id = window.setInterval(() => void tick(), 1000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [groupId, phase, step])
 
   useEffect(() => {
     if (!skipCurrentDiscussionSignal) return
@@ -667,34 +1295,76 @@ export function GroupMemoryPhase({
   const sendMessage = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed) return
+    const currentStep = stepRef.current
+    const slideId = items[currentStep]?.slideId
+    if (!slideId) return
     const msg: DiscussionMessage = {
-      questionIndex: step,
-      slideId: item.slideId,
+      questionIndex: currentStep,
+      slideId,
       anonId,
-      participantId,
+      participantId: participantIdRef.current,
       message: trimmed,
       sentAt: new Date().toISOString(),
     }
-    setMessages((prev) => [...prev, msg])
-    onMessagePersist(msg)
-    await channelRef.current?.send({ type: 'broadcast', event: 'message', payload: msg })
+    setMessages((prev) => appendDiscussionMessage(prev, msg))
+    onMessagePersistRef.current(msg)
+
+    const client = getSupabaseClient()
+    if (client && sessionId.trim() && groupId.trim()) {
+      void appendDiscussionMessageLive(client, {
+        sessionId,
+        groupId,
+        anonId,
+        participantId: participantIdRef.current,
+        message: msg,
+      })
+    }
+
+    scheduleBroadcastRetries(() => {
+      broadcastViaChannel(channelRef.current, channelReadyRef.current, 'message', msg)
+    })
   }
 
   const submitAnswer = () => {
     if (!recall || confidence === null) return
-    onAnswer(step, recall, confidence)
-    submittedStepRef.current = step
+    const currentStep = stepRef.current
+    onAnswer(currentStep, recall, confidence)
+    submittedStepRef.current = currentStep
     setSubmittedThisStep(true)
-    setAnsweredIds((prev) => (prev.includes(anonId) ? prev : [...prev, anonId]))
-    void channelRef.current?.send({
-      type: 'broadcast',
-      event: 'answer_done',
-      payload: {
-        step,
-        anonId,
-        answeredAt: new Date().toISOString(),
+    localAnswerDoneStepRef.current = currentStep
+    applyAnsweredIds([anonId])
+    const channel = channelRef.current
+    if (channel) {
+      void channel
+        .track({
+          anonId,
+          sessionId,
+          endVoteForStep: localEndVoteStepRef.current,
+          answerDoneForStep: currentStep,
+          answerDoneAt: new Date().toISOString(),
+        })
+        .then(() => {
+          syncRealtimeProgress(channel)
+          broadcastMyProgressWithRetries()
+        })
+    }
+    scheduleBroadcastRetries(
+      () => {
+        broadcastViaChannel(
+          channelRef.current,
+          channelReadyRef.current,
+          'answer_done',
+          {
+            step: currentStep,
+            anonId,
+            answeredAt: new Date().toISOString(),
+          },
+        )
       },
-    })
+      GROUP_BROADCAST_RETRY_DELAYS_MS,
+    )
+    broadcastMyProgressWithRetries()
+    maybeAdvanceFromAnswerQuorum()
   }
 
   return (
@@ -724,8 +1394,23 @@ export function GroupMemoryPhase({
             onSend={sendMessage}
             participantChatStyle={participantChatStyle}
             myAnonId={anonId}
-            systemPrompt={prompt?.trim() || 'What do you think was in the masked area?'}
+            systemPrompt={item.prompt}
           />
+          <div className="discussion-end-vote">
+            <p className="muted small">
+              Votes to end discussion: {uniqueEndVotes.length} / {groupSize}
+            </p>
+            <button
+              type="button"
+              className="btn secondary discussion-end-vote-btn"
+              disabled={votedToEndDiscussion}
+              onClick={voteToEndDiscussion}
+            >
+              {votedToEndDiscussion
+                ? 'You voted to end — waiting for others'
+                : 'Vote to end discussion'}
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -772,7 +1457,7 @@ export function GroupMemoryPhase({
               onClick={submitAnswer}
             >
               {submittedThisStep
-                ? `Waiting for others… (${answeredIds.length}/${groupSize})`
+                ? `Waiting for others… (${uniqueAnsweredIds.length}/${groupSize})`
                 : step + 1 >= items.length
                   ? 'Submit answer'
                   : 'Submit answer'}

@@ -9,7 +9,14 @@ import {
   GroupSoloMemoryWaitGate,
 } from './GroupDiscussionFlow'
 import { assetUrl } from '../lib/assetUrl'
-import { memoryTrialCorrectness, type MemoryItemDef, type MemoryResponse } from '../types/study'
+import {
+  buildGroupConditionAssignmentPlan,
+  GROUP_MIXED_SESSION_CONDITION,
+  type GroupParticipantId,
+} from '../lib/groupConditionAssignment'
+import { persistMemoryAnswerLive } from '../lib/memoryAnswerSync'
+import { getSupabaseClient } from '../lib/supabaseClient'
+import { memoryTrialCorrectness, type ConditionKey, type MemoryItemDef, type MemoryResponse } from '../types/study'
 
 /** Seconds the "Start viewing images" button stays disabled so participants read instructions. */
 const VIEW_PREP_MIN_WAIT_SECONDS = 5
@@ -29,11 +36,6 @@ function stableHash(input: string): number {
     h = Math.imul(h, 16777619)
   }
   return h >>> 0
-}
-
-function assignGroupCondition(groupId: string, anonId: 'P1' | 'P2' | 'P3' | 'P4') {
-  void groupId
-  return anonId === 'P3' || anonId === 'P4' ? ('ai_edited_image' as const) : ('no_edit' as const)
 }
 
 function createDeterministicOrder(size: number, seedText: string): number[] {
@@ -281,6 +283,16 @@ export function StudyFlow() {
     () => groupMemoryOrder.map((i) => memoryItems[i]!),
     [groupMemoryOrder, memoryItems],
   )
+  const groupConditionPlan = useMemo(() => {
+    if (!groupModeRequested || !groupId.trim()) return null
+    return buildGroupConditionAssignmentPlan(groupId.trim(), slides)
+  }, [groupModeRequested, groupId, slides])
+  const groupConditionBySlideId = useMemo(
+    () => groupConditionPlan?.byParticipant[anonId as GroupParticipantId] ?? null,
+    [groupConditionPlan, anonId],
+  )
+  const conditionViewedForSlide = (slideId: string): ConditionKey | undefined =>
+    groupConditionBySlideId?.[slideId]
   const consentSections = useMemo(() => parseConsentSections(meta.consentText), [meta.consentText])
   const fillMissingMemoryResponses = (
     existing: MemoryResponse[],
@@ -292,12 +304,14 @@ export function StudyFlow() {
       if (next[i]) continue
       const it = itemsForPhase[i]!
       const expected = it.expectedAnswer
+      const viewed = conditionViewedForSlide(it.slideId)
       next[i] = {
         itemIndex: order[i]!,
         presentationIndex: i,
         slideId: it.slideId,
         recall: 'unsure',
         confidence: 4,
+        ...(viewed !== undefined ? { conditionViewed: viewed } : {}),
         ...(expected !== undefined ? { expectedAnswer: expected } : {}),
         isCorrect: memoryTrialCorrectness('unsure', expected),
       }
@@ -336,8 +350,9 @@ export function StudyFlow() {
     groupModeRequested && phase === 'memory' && groupMemorySubphase === 'discussion'
   const ensureDebugCondition = () => {
     if (condition !== null) return condition
-    setCondition('no_edit')
-    return 'no_edit' as const
+    const fallback = groupModeRequested ? GROUP_MIXED_SESSION_CONDITION : 'no_edit'
+    setCondition(fallback)
+    return fallback
   }
   const completeToPostSurveyWithFill = () => {
     if (groupModeRequested) {
@@ -618,7 +633,10 @@ export function StudyFlow() {
         ) : null}
         {meta.showConditionKeyToParticipant && condition ? (
           <p className="muted small">
-            Assigned condition (debug): {bundle.study.conditionLabels[condition]}
+            Assigned condition (debug):{' '}
+            {condition === GROUP_MIXED_SESSION_CONDITION
+              ? 'Group: mixed per slide (see event log)'
+              : bundle.study.conditionLabels[condition]}
           </p>
         ) : null}
         <label className="check-row">
@@ -673,19 +691,26 @@ export function StudyFlow() {
             onClick={() => {
               let startCondition = condition
               if (groupModeRequested) {
-                startCondition = assignGroupCondition(groupId, anonId)
+                const plan = buildGroupConditionAssignmentPlan(groupId.trim(), slides)
+                startCondition = GROUP_MIXED_SESSION_CONDITION
                 setCondition(startCondition)
-                logEvent('group_condition_auto_assigned', {
-                  groupId,
+                logEvent('group_condition_plan', {
+                  groupId: groupId.trim(),
                   anonId,
-                  assignedCondition: startCondition,
+                  sessionConditionKey: startCondition,
+                  participantSummary: plan.participantSummary[anonId as GroupParticipantId],
+                  conditionBySlideId: plan.byParticipant[anonId as GroupParticipantId],
+                  exposureTable: plan.exposureTable,
                 })
               }
               if (startCondition === null) return
               logEvent('session_start', {
                 sessionId,
                 condition: startCondition,
-                conditionLabel: bundle.study.conditionLabels[startCondition],
+                conditionLabel:
+                  startCondition === GROUP_MIXED_SESSION_CONDITION
+                    ? 'group_mixed_per_slide'
+                    : bundle.study.conditionLabels[startCondition],
                 userAgent: navigator.userAgent,
                 groupModeRequested,
                 groupId: groupModeRequested ? groupId : undefined,
@@ -894,7 +919,8 @@ export function StudyFlow() {
         instructions={meta.conditionPhaseInstructions}
         slides={orderedConditionSlides}
         configIndexAtPresentation={presentationOrders.condition}
-        condition={conditionKey}
+        condition={conditionKey === GROUP_MIXED_SESSION_CONDITION ? 'no_edit' : conditionKey}
+        conditionBySlideId={groupModeRequested ? groupConditionBySlideId ?? undefined : undefined}
         durationSec={meta.conditionDurationSeconds}
         groupSync={
           groupModeRequested
@@ -976,7 +1002,16 @@ export function StudyFlow() {
             advanceButtonLabel="Next item"
             finalAdvanceButtonLabel="Finish individual test"
             memoryAnswerLogExtras={{ groupMode: true, memoryRound: 'pre_discussion' }}
+            conditionViewedForSlide={groupConditionBySlideId ? conditionViewedForSlide : undefined}
             logEvent={logEvent}
+            livePersist={{
+              sessionId,
+              groupId,
+              anonId,
+              participantId: formatParticipantIdForDisplay(demographicsAnswers) || undefined,
+              conditionKey: GROUP_MIXED_SESSION_CONDITION,
+              memoryRound: 'pre_discussion',
+            }}
           />
         )
       }
@@ -1037,8 +1072,8 @@ export function StudyFlow() {
           groupId={groupId}
           anonId={anonId}
           groupSize={groupSize}
+          sessionId={sessionId}
           durationSec={discSec}
-          prompt={groupCfg?.prompt}
           participantId={formatParticipantIdForDisplay(demographicsAnswers) || undefined}
           responses={memoryResponses}
           onLog={logEvent}
@@ -1048,6 +1083,7 @@ export function StudyFlow() {
             const expected = item.expectedAnswer
             const isCorrect = memoryTrialCorrectness(recall, expected)
             const configItemIndex = groupMemoryOrder[step]!
+            const viewed = conditionViewedForSlide(item.slideId)
             const next = [...memoryResponses]
             next[step] = {
               itemIndex: configItemIndex,
@@ -1055,10 +1091,12 @@ export function StudyFlow() {
               slideId: item.slideId,
               recall,
               confidence,
+              ...(viewed !== undefined ? { conditionViewed: viewed } : {}),
               ...(expected !== undefined ? { expectedAnswer: expected } : {}),
               isCorrect,
             }
             setMemoryResponses(next)
+            const saved = next[step]!
             logEvent('memory_answer', {
               step,
               presentationIndex: step,
@@ -1068,9 +1106,22 @@ export function StudyFlow() {
               confidence,
               expectedAnswer: expected,
               isCorrect,
+              conditionViewed: viewed,
               groupMode: true,
               memoryRound: 'post_discussion',
             })
+            const client = getSupabaseClient()
+            if (client && sessionId.trim() && groupId.trim()) {
+              void persistMemoryAnswerLive(client, {
+                sessionId,
+                groupId,
+                anonId,
+                participantId: formatParticipantIdForDisplay(demographicsAnswers) || undefined,
+                conditionKey: GROUP_MIXED_SESSION_CONDITION,
+                memoryRound: 'post_discussion',
+                answer: { ...saved, memoryRound: 'post_discussion' },
+              })
+            }
           }}
           skipCurrentDiscussionSignal={discussionSkipSignal}
           onComplete={async () => {
@@ -1402,6 +1453,7 @@ function ConditionPhase({
   slides,
   configIndexAtPresentation,
   condition,
+  conditionBySlideId,
   durationSec,
   groupSync,
   onComplete,
@@ -1411,7 +1463,9 @@ function ConditionPhase({
   instructions: string
   slides: import('../types/study').SlideDef[]
   configIndexAtPresentation: number[]
-  condition: import('../types/study').ConditionKey
+  condition: ConditionKey
+  /** Group mode: slideId → condition key (stable object; do not pass inline functions). */
+  conditionBySlideId?: Record<string, ConditionKey>
   durationSec: number
   groupSync?: {
     groupId: string
@@ -1429,10 +1483,15 @@ function ConditionPhase({
   const [seenIndices, setSeenIndices] = useState<Set<number>>(() => new Set([0]))
   const autoAdvancedRef = useRef(false)
   const prepLockSecondsLeft = usePrepScreenLock(viewingStarted)
+  const resolveCondition = (slideId: string): ConditionKey =>
+    conditionBySlideId?.[slideId] ?? condition
 
   useEffect(() => {
     setIdx(0)
-  }, [condition])
+    setSeenIndices(new Set([0]))
+    setElapsed(0)
+    autoAdvancedRef.current = false
+  }, [condition, slides.length])
 
   useEffect(() => {
     if (!viewingStarted) return
@@ -1457,11 +1516,12 @@ function ConditionPhase({
     autoAdvancedRef.current = true
     logEvent('condition_complete', {
       condition,
+      perSlideAssignment: Boolean(conditionBySlideId),
       elapsed,
       autoAdvanceAfterMinDuration: true,
     })
     onComplete()
-  }, [viewingStarted, elapsed, durationSec, condition, logEvent, onComplete])
+  }, [viewingStarted, elapsed, durationSec, condition, conditionBySlideId, logEvent, onComplete])
 
   const go = (dir: 1 | -1) => {
     setIdx((i) => (i + dir + slides.length) % slides.length)
@@ -1470,15 +1530,16 @@ function ConditionPhase({
   useEffect(() => {
     if (!viewingStarted) return
     const slide = slides[idx]
+    const slideCondition = resolveCondition(slide.id)
     logEvent('condition_slide', {
       slideId: slide.id,
       presentationIndex: idx,
       configSlideIndex: configIndexAtPresentation[idx],
-      condition,
-      media: slide.conditionMediaType[condition],
-      src: slide.conditionSrc[condition],
+      condition: slideCondition,
+      media: slide.conditionMediaType[slideCondition],
+      src: slide.conditionSrc[slideCondition],
     })
-  }, [idx, slides, condition, logEvent, viewingStarted, configIndexAtPresentation])
+  }, [idx, slides, condition, conditionBySlideId, logEvent, viewingStarted, configIndexAtPresentation])
 
   useEffect(() => {
     if (!viewingStarted || slides.length === 0) return
@@ -1486,15 +1547,17 @@ function ConditionPhase({
     const want = new Set([idx, (idx + 1) % n, (idx - 1 + n) % n])
     for (const i of want) {
       const sl = slides[i]!
-      if (sl.conditionMediaType[condition] !== 'image') continue
+      const slideCondition = resolveCondition(sl.id)
+      if (sl.conditionMediaType[slideCondition] !== 'image') continue
       const img = new Image()
-      img.src = assetUrl(sl.conditionSrc[condition])
+      img.src = assetUrl(sl.conditionSrc[slideCondition])
     }
-  }, [viewingStarted, idx, slides, condition])
+  }, [viewingStarted, idx, slides, condition, conditionBySlideId])
 
   const slide = slides[idx]
-  const src = assetUrl(slide.conditionSrc[condition])
-  const media = slide.conditionMediaType[condition]
+  const activeCondition = resolveCondition(slide.id)
+  const src = assetUrl(slide.conditionSrc[activeCondition])
+  const media = slide.conditionMediaType[activeCondition]
 
   if (!viewingStarted) {
     return (
@@ -1540,7 +1603,7 @@ function ConditionPhase({
               logEvent('condition_viewing_prepare_ack', {
                 slideCount: slides.length,
                 durationSec,
-                condition,
+                perSlideAssignment: Boolean(conditionBySlideId),
                 groupSync: true,
               })
               setViewingStarted(true)
@@ -1561,7 +1624,7 @@ function ConditionPhase({
                 logEvent('condition_viewing_prepare_ack', {
                   slideCount: slides.length,
                   durationSec,
-                  condition,
+                  perSlideAssignment: Boolean(conditionBySlideId),
                 })
                 setViewingStarted(true)
               }}
@@ -1607,7 +1670,7 @@ function ConditionPhase({
           />
         ) : (
           <img
-            key={slide.id}
+            key={`${slide.id}-${activeCondition}`}
             src={src}
             alt=""
             className="stage-img"
@@ -1641,6 +1704,8 @@ function MemoryPhase({
   advanceButtonLabel = 'Next item',
   finalAdvanceButtonLabel = 'Continue to questionnaire',
   memoryAnswerLogExtras,
+  conditionViewedForSlide,
+  livePersist,
 }: {
   title: string
   instructions: string
@@ -1653,6 +1718,15 @@ function MemoryPhase({
   advanceButtonLabel?: string
   finalAdvanceButtonLabel?: string
   memoryAnswerLogExtras?: Record<string, unknown>
+  conditionViewedForSlide?: (slideId: string) => ConditionKey | undefined
+  livePersist?: {
+    sessionId: string
+    groupId: string
+    anonId: 'P1' | 'P2' | 'P3' | 'P4'
+    participantId?: string
+    conditionKey: string
+    memoryRound: 'pre_discussion' | 'post_discussion'
+  }
 }) {
   const [step, setStep] = useState(0)
   const item = items[step]
@@ -1676,6 +1750,7 @@ function MemoryPhase({
     const expected = item.expectedAnswer
     const isCorrect = memoryTrialCorrectness(recall, expected)
     const configItemIndex = configItemIndexAtPresentation[step]!
+    const viewed = conditionViewedForSlide?.(item.slideId)
     const next = [...responses]
     next[step] = {
       itemIndex: configItemIndex,
@@ -1683,10 +1758,12 @@ function MemoryPhase({
       slideId: item.slideId,
       recall,
       confidence,
+      ...(viewed !== undefined ? { conditionViewed: viewed } : {}),
       ...(expected !== undefined ? { expectedAnswer: expected } : {}),
       isCorrect,
     }
     onChange(next)
+    const saved = next[step]!
     logEvent('memory_answer', {
       step,
       presentationIndex: step,
@@ -1696,8 +1773,21 @@ function MemoryPhase({
       confidence,
       expectedAnswer: expected,
       isCorrect,
+      ...(viewed !== undefined ? { conditionViewed: viewed } : {}),
       ...(memoryAnswerLogExtras ?? {}),
     })
+    if (livePersist) {
+      const client = getSupabaseClient()
+      if (client && livePersist.sessionId.trim() && livePersist.groupId.trim()) {
+        void persistMemoryAnswerLive(client, {
+          ...livePersist,
+          answer: {
+            ...saved,
+            memoryRound: livePersist.memoryRound,
+          },
+        })
+      }
+    }
     if (step + 1 >= items.length) void onComplete(next)
     else setStep((s) => s + 1)
   }

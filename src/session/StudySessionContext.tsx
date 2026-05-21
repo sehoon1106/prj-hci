@@ -13,12 +13,16 @@ import { createPresentationOrders } from '../lib/presentationOrder'
 import type {
   ConditionKey,
   DiscussionMessage,
+  GroupSessionConditionKey,
   LogEvent,
   MemoryResponse,
   PresentationOrders,
   StudyBundle,
   StudyPhase,
 } from '../types/study'
+import { buildGroupConditionAssignmentPlan } from '../lib/groupConditionAssignment'
+
+export type SessionConditionKey = ConditionKey | GroupSessionConditionKey
 import { submitResults, type SubmissionPayload } from '../services/submitResults'
 
 interface StudySessionValue {
@@ -26,8 +30,8 @@ interface StudySessionValue {
   phase: StudyPhase
   setPhase: (p: StudyPhase) => void
   sessionId: string
-  condition: ConditionKey | null
-  setCondition: (c: ConditionKey) => void
+  condition: SessionConditionKey | null
+  setCondition: (c: SessionConditionKey) => void
   consentAccepted: boolean
   setConsentAccepted: (v: boolean) => void
   demographicsAnswers: Record<string, string | number>
@@ -85,7 +89,7 @@ export function StudySessionProvider({
   const [demographicsAnswers, setDemographicsAnswers] = useState<
     Record<string, string | number>
   >({})
-  const [condition, setCondition] = useState<ConditionKey | null>(null)
+  const [condition, setCondition] = useState<SessionConditionKey | null>(null)
   const [preAnswers, setPreAnswers] = useState<
     Record<string, string | number>
   >({})
@@ -144,6 +148,9 @@ export function StudySessionProvider({
       setMemoryResponses(opts.memoryResponses)
     }
     const isGroupSession = Boolean(groupIdTrimmed)
+    const groupConditionPlan = isGroupSession
+      ? buildGroupConditionAssignmentPlan(groupIdTrimmed, bundle.slides.slides)
+      : null
     const memoryPayload: MemoryResponse[] = isGroupSession
       ? [
           ...memoryResponsesPreDiscussion.map((r) => ({
@@ -181,6 +188,12 @@ export function StudySessionProvider({
           anonId: groupIdTrimmed ? anonId : undefined,
           participantId,
           discussionMessages,
+          groupConditionBySlide:
+            isGroupSession && groupConditionPlan
+              ? groupConditionPlan.byParticipant[anonId]
+              : undefined,
+          groupConditionExposureTable:
+            isGroupSession && groupConditionPlan ? groupConditionPlan.exposureTable : undefined,
         }
         const r = await submitResults(payload)
         submittedThisRunRef.current = true
@@ -211,6 +224,7 @@ export function StudySessionProvider({
     groupId,
     anonId,
     discussionMessages,
+    bundle.slides.slides,
   ])
 
   const value = useMemo(

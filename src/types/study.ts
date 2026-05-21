@@ -1,5 +1,8 @@
 export type ConditionKey = 'no_edit' | 'ai_edited_image'
 
+/** Stored on `study_submissions.condition_key` for group sessions with per-slide assignment. */
+export type GroupSessionConditionKey = 'group_mixed'
+
 export type StudyPhase =
   | 'intro'
   | 'group_lobby'
@@ -141,7 +144,6 @@ export interface StudyMeta {
     enabled: boolean
     groupSize: number
     discussionDurationSeconds: number
-    prompt?: string
   }
 }
 
@@ -180,6 +182,11 @@ export interface MemoryResponse {
    * Both rounds use the same `presentationIndex` / `itemIndex` semantics (15 trials each, stored as separate entries in `memory_responses`).
    */
   memoryRound?: 'pre_discussion' | 'post_discussion'
+  /**
+   * Second image set: which version this participant viewed for this slide (`slideId`).
+   * Group mode only; omitted in individual between-subjects runs.
+   */
+  conditionViewed?: ConditionKey
   /** Ground-truth key from `memory-items.json`, if present. */
   expectedAnswer?: 'agree' | 'disagree'
   /**

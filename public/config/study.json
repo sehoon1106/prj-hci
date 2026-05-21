@@ -32,7 +32,6 @@
   "groupDiscussion": {
     "enabled": true,
     "groupSize": 4,
-    "discussionDurationSeconds": 120,
-    "prompt": ""
+    "discussionDurationSeconds": 120
   }
 }
