@@ -62,16 +62,21 @@ export async function fetchDiscussionMessagesForQuestion(
   groupId: string,
   questionIndex: number,
   slideId: string,
+  signal?: AbortSignal,
 ): Promise<DiscussionMessage[]> {
-  const { data, error } = await client
+  if (signal?.aborted) return []
+  let query = client
     .from('discussion_messages')
     .select('discussion_log')
     .eq('group_id', groupId.trim())
     .eq('question_index', questionIndex)
     .eq('slide_id', slideId)
     .maybeSingle()
+  if (signal) query = query.abortSignal(signal)
+  const { data, error } = await query
 
   if (error) {
+    if (signal?.aborted) return []
     console.warn('[discussion chat] fetch failed:', error.message)
     return []
   }

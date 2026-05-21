@@ -49,16 +49,23 @@ export async function fetchAnsweredAnonIdsForStep(
     sessionIds: string[]
     presentationIndex: number
     memoryRound: MemoryAnswerRound
+    /** When provided, cancels the underlying HTTP request on abort — critical to prevent
+     * stale polls from previous steps piling up in the browser connection pool. */
+    signal?: AbortSignal
   },
 ): Promise<GroupParticipantId[]> {
   const sessionIds = params.sessionIds.map((s) => s.trim()).filter(Boolean)
   if (sessionIds.length === 0) return []
-  const { data, error } = await client
+  if (params.signal?.aborted) return []
+  let query = client
     .from('study_submissions')
     .select('anon_id, memory_responses')
     .eq('group_id', params.groupId.trim())
     .in('session_id', sessionIds)
+  if (params.signal) query = query.abortSignal(params.signal)
+  const { data, error } = await query
   if (error) {
+    if (params.signal?.aborted) return []
     console.warn('[memory answer] fetch acks failed:', error.message)
     return []
   }

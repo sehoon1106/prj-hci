@@ -1124,15 +1124,25 @@ export function StudyFlow() {
             }
           }}
           skipCurrentDiscussionSignal={discussionSkipSignal}
-          onComplete={async () => {
+          onComplete={() => {
+            // CRITICAL: transition the UI synchronously FIRST so the polling-heavy
+            // GroupDiscussionFlow unmounts and frees its in-flight fetches. Awaiting
+            // finalizeStudy here while the network is congested by stale polls causes
+            // the submit to hang and locks the screen on "Waiting for others... (4/4)".
+            // The end-of-study screen handles submit completion on its own.
             if (externalPostUrl) {
-              logEvent('submit_start', {})
-              await finalizeStudy()
-              logEvent('submit_done', {})
-              setSubmitCompletedBeforeEndScreen(true)
               logEvent('phase_enter', { phase: 'complete' })
               setGroupMemorySubphase('solo_gate')
               setPhase('complete')
+              logEvent('submit_start', {})
+              void finalizeStudy()
+                .then(() => {
+                  logEvent('submit_done', {})
+                  setSubmitCompletedBeforeEndScreen(true)
+                })
+                .catch((err) => {
+                  console.error('[study] finalizeStudy failed:', err)
+                })
             } else {
               logEvent('phase_enter', { phase: 'post_survey' })
               setGroupMemorySubphase('solo_gate')

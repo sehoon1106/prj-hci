@@ -578,20 +578,25 @@ export function GroupMemoryPhase({
     })
   }, [])
 
-  const refreshMessagesFromDb = useCallback(async () => {
-    const client = getSupabaseClient()
-    if (!client || !sessionId.trim() || !groupId.trim()) return
-    const currentStep = stepRef.current
-    const slideId = items[currentStep]?.slideId
-    if (!slideId) return
-    const fetched = await fetchDiscussionMessagesForQuestion(
-      client,
-      groupId,
-      currentStep,
-      slideId,
-    )
-    mergeRemoteMessages(fetched)
-  }, [groupId, items, mergeRemoteMessages, sessionId])
+  const refreshMessagesFromDb = useCallback(
+    async (signal?: AbortSignal) => {
+      const client = getSupabaseClient()
+      if (!client || !sessionId.trim() || !groupId.trim()) return
+      const currentStep = stepRef.current
+      const slideId = items[currentStep]?.slideId
+      if (!slideId) return
+      const fetched = await fetchDiscussionMessagesForQuestion(
+        client,
+        groupId,
+        currentStep,
+        slideId,
+        signal,
+      )
+      if (signal?.aborted) return
+      mergeRemoteMessages(fetched)
+    },
+    [groupId, items, mergeRemoteMessages, sessionId],
+  )
 
   const endDiscussionForStep = useCallback(
     (forStep: number, via: string, shouldBroadcast: boolean) => {
@@ -905,9 +910,23 @@ export function GroupMemoryPhase({
 
   useEffect(() => {
     if (phase !== 'discussion') return
-    void refreshMessagesFromDb()
-    const pollId = window.setInterval(() => void refreshMessagesFromDb(), 1500)
-    return () => window.clearInterval(pollId)
+    let inFlight = false
+    const controller = new AbortController()
+    const tick = async () => {
+      if (inFlight || controller.signal.aborted) return
+      inFlight = true
+      try {
+        await refreshMessagesFromDb(controller.signal)
+      } finally {
+        inFlight = false
+      }
+    }
+    void tick()
+    const pollId = window.setInterval(() => void tick(), 1500)
+    return () => {
+      window.clearInterval(pollId)
+      controller.abort()
+    }
   }, [phase, refreshMessagesFromDb, step])
 
   useEffect(() => {
@@ -1169,31 +1188,47 @@ export function GroupMemoryPhase({
     broadcastMyProgressWithRetriesRef.current()
   }, [anonId, phase, sessionId, step])
 
+  // Three concurrent polls fire every ~1.5s. Without an in-flight guard AND an AbortController,
+  // a slow round-trip plus the React effect re-mount per step transition let pending fetches
+  // pile up indefinitely in the browser connection pool — eventually surfacing as
+  // `net::ERR_INSUFFICIENT_RESOURCES` and blocking even the final submit. Both guards together
+  // ensure: (a) only one fetch per poll type is in flight at any moment, (b) leftover fetches
+  // from a previous step/phase are cancelled, freeing connections immediately.
   useEffect(() => {
     if (phase !== 'answer') return
     const client = getSupabaseClient()
     if (!client || !groupId.trim()) return
     let cancelled = false
+    let inFlight = false
+    const controller = new AbortController()
     const tick = async () => {
-      const stepAtRequest = stepRef.current
-      const knownSessionIds = [...peerSessionIdsRef.current]
-      const answered = await fetchAnsweredAnonIdsForStep(client, {
-        groupId,
-        sessionIds: knownSessionIds,
-        presentationIndex: stepAtRequest,
-        memoryRound: 'post_discussion',
-      })
-      if (cancelled) return
-      if (stepAtRequest !== stepRef.current) return
-      if (answered.length === 0) return
-      applyAnsweredIdsRef.current(answered)
-      maybeAdvanceFromAnswerQuorumRef.current()
+      if (cancelled || inFlight) return
+      inFlight = true
+      try {
+        const stepAtRequest = stepRef.current
+        const knownSessionIds = [...peerSessionIdsRef.current]
+        const answered = await fetchAnsweredAnonIdsForStep(client, {
+          groupId,
+          sessionIds: knownSessionIds,
+          presentationIndex: stepAtRequest,
+          memoryRound: 'post_discussion',
+          signal: controller.signal,
+        })
+        if (cancelled) return
+        if (stepAtRequest !== stepRef.current) return
+        if (answered.length === 0) return
+        applyAnsweredIdsRef.current(answered)
+        maybeAdvanceFromAnswerQuorumRef.current()
+      } finally {
+        inFlight = false
+      }
     }
     void tick()
-    const id = window.setInterval(() => void tick(), 1000)
+    const id = window.setInterval(() => void tick(), 1500)
     return () => {
       cancelled = true
       window.clearInterval(id)
+      controller.abort()
     }
   }, [groupId, phase, step])
 
@@ -1206,40 +1241,51 @@ export function GroupMemoryPhase({
     const client = getSupabaseClient()
     if (!client || !groupId.trim()) return
     let cancelled = false
+    let inFlight = false
+    const controller = new AbortController()
     const tick = async () => {
-      const stepAtRequest = stepRef.current
-      const knownSessionIds = [...peerSessionIdsRef.current]
-      const [voters, enders] = await Promise.all([
-        fetchGroupStepSignalAnons(client, {
-          groupId,
-          sessionIds: knownSessionIds,
-          presentationIndex: stepAtRequest,
-          signalType: 'end_vote',
-        }),
-        fetchGroupStepSignalAnons(client, {
-          groupId,
-          sessionIds: knownSessionIds,
-          presentationIndex: stepAtRequest,
-          signalType: 'discussion_end',
-        }),
-      ])
-      if (cancelled) return
-      if (stepAtRequest !== stepRef.current) return
-      if (phaseRef.current !== 'discussion') return
-      if (voters.length > 0) {
-        applyEndVotesRef.current(voters)
-        maybeEndDiscussionFromQuorumRef.current()
-      }
-      if (enders.length > 0) {
-        // At least one peer has already ended this discussion -> follow them.
-        endDiscussionForStepRef.current(stepAtRequest, 'db_poll_peer_end', false)
+      if (cancelled || inFlight) return
+      inFlight = true
+      try {
+        const stepAtRequest = stepRef.current
+        const knownSessionIds = [...peerSessionIdsRef.current]
+        const [voters, enders] = await Promise.all([
+          fetchGroupStepSignalAnons(client, {
+            groupId,
+            sessionIds: knownSessionIds,
+            presentationIndex: stepAtRequest,
+            signalType: 'end_vote',
+            signal: controller.signal,
+          }),
+          fetchGroupStepSignalAnons(client, {
+            groupId,
+            sessionIds: knownSessionIds,
+            presentationIndex: stepAtRequest,
+            signalType: 'discussion_end',
+            signal: controller.signal,
+          }),
+        ])
+        if (cancelled) return
+        if (stepAtRequest !== stepRef.current) return
+        if (phaseRef.current !== 'discussion') return
+        if (voters.length > 0) {
+          applyEndVotesRef.current(voters)
+          maybeEndDiscussionFromQuorumRef.current()
+        }
+        if (enders.length > 0) {
+          // At least one peer has already ended this discussion -> follow them.
+          endDiscussionForStepRef.current(stepAtRequest, 'db_poll_peer_end', false)
+        }
+      } finally {
+        inFlight = false
       }
     }
     void tick()
-    const id = window.setInterval(() => void tick(), 1000)
+    const id = window.setInterval(() => void tick(), 1500)
     return () => {
       cancelled = true
       window.clearInterval(id)
+      controller.abort()
     }
   }, [groupId, phase, step])
 
@@ -1251,26 +1297,36 @@ export function GroupMemoryPhase({
     const client = getSupabaseClient()
     if (!client || !groupId.trim()) return
     let cancelled = false
+    let inFlight = false
+    const controller = new AbortController()
     const tick = async () => {
-      const stepAtRequest = stepRef.current
-      const knownSessionIds = [...peerSessionIdsRef.current]
-      const advancers = await fetchGroupStepSignalAnons(client, {
-        groupId,
-        sessionIds: knownSessionIds,
-        presentationIndex: stepAtRequest,
-        signalType: 'step_advance',
-      })
-      if (cancelled) return
-      if (stepAtRequest !== stepRef.current) return
-      if (phaseRef.current !== 'answer') return
-      if (advancers.length === 0) return
-      advanceStepFromAnswerQuorumRef.current(stepAtRequest, 'db_poll_peer_advance', false)
+      if (cancelled || inFlight) return
+      inFlight = true
+      try {
+        const stepAtRequest = stepRef.current
+        const knownSessionIds = [...peerSessionIdsRef.current]
+        const advancers = await fetchGroupStepSignalAnons(client, {
+          groupId,
+          sessionIds: knownSessionIds,
+          presentationIndex: stepAtRequest,
+          signalType: 'step_advance',
+          signal: controller.signal,
+        })
+        if (cancelled) return
+        if (stepAtRequest !== stepRef.current) return
+        if (phaseRef.current !== 'answer') return
+        if (advancers.length === 0) return
+        advanceStepFromAnswerQuorumRef.current(stepAtRequest, 'db_poll_peer_advance', false)
+      } finally {
+        inFlight = false
+      }
     }
     void tick()
-    const id = window.setInterval(() => void tick(), 1000)
+    const id = window.setInterval(() => void tick(), 1500)
     return () => {
       cancelled = true
       window.clearInterval(id)
+      controller.abort()
     }
   }, [groupId, phase, step])
 
