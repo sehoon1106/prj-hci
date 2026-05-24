@@ -1,110 +1,89 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "items": [
     {
       "slideId": "slide-01",
-      "maskedSrc": "/stimuli/masked/object-1-masked.png",
-      "prompt": "Did you remember seeing a red graduation robe in the original picture?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/env-1-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-1?",
+      "expectedAnswer": "agree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-02",
-      "maskedSrc": "/stimuli/masked/object-2-masked.png",
-      "prompt": "Did you remember seeing an American flag in the original picture?",
-      "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/env-2-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-2?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-03",
-      "maskedSrc": "/stimuli/masked/object-3-masked.png",
-      "prompt": "Did you remember seeing a flower on the table in the original picture?",
+      "maskedSrc": "/stimuli/masked/env-3-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-3?",
       "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-04",
-      "maskedSrc": "/stimuli/masked/object-4-masked.png",
-      "prompt": "Did you remember seeing a red truck in the original picture?",
-      "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/env-4-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-4?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-05",
-      "maskedSrc": "/stimuli/masked/object-5-masked.png",
-      "prompt": "Did you remember seeing a birthday cake in the original picture?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/object-1-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-1?",
+      "expectedAnswer": "agree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-06",
-      "maskedSrc": "/stimuli/masked/people-1-masked.png",
-      "prompt": "Did you remember seeing the person smiling in the original picture?",
+      "maskedSrc": "/stimuli/masked/object-2-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-2?",
       "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-07",
-      "maskedSrc": "/stimuli/masked/people-2-masked.png",
-      "prompt": "Did you remember seeing a beard on the man in the original picture?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/object-3-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-3?",
+      "expectedAnswer": "agree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-08",
-      "maskedSrc": "/stimuli/masked/people-3-masked.png",
-      "prompt": "Did you remember seeing a woman standing beside the two people in the original picture?",
-      "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "maskedSrc": "/stimuli/masked/object-4-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-4?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-09",
-      "maskedSrc": "/stimuli/masked/people-4-masked.png",
-      "prompt": "Did you remember seeing an adult in the original picture?",
+      "maskedSrc": "/stimuli/masked/people-1-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-1?",
       "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-10",
-      "maskedSrc": "/stimuli/masked/people-5-masked.png",
-      "prompt": "Did you remember seeing another player in the field in the original picture?",
+      "maskedSrc": "/stimuli/masked/people-2-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-2?",
       "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-11",
-      "maskedSrc": "/stimuli/masked/env-1-masked.png",
-      "prompt": "Did you remember seeing part of the land covered by water in the original picture?",
+      "maskedSrc": "/stimuli/masked/people-3-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-3?",
       "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     },
     {
       "slideId": "slide-12",
-      "maskedSrc": "/stimuli/masked/env-2-masked.png",
-      "prompt": "Did you remember seeing an island in the background of the original picture?",
-      "expectedAnswer": "agree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
-    },
-    {
-      "slideId": "slide-13",
-      "maskedSrc": "/stimuli/masked/env-3-masked.png",
-      "prompt": "Did you remember seeing a mountain in the background of the original picture?",
+      "maskedSrc": "/stimuli/masked/people-4-masked.jpg",
+      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-4?",
       "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
-    },
-    {
-      "slideId": "slide-14",
-      "maskedSrc": "/stimuli/masked/env-4-masked.png",
-      "prompt": "Did you remember seeing clouds in the original picture?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
-    },
-    {
-      "slideId": "slide-15",
-      "maskedSrc": "/stimuli/masked/env-5-masked.png",
-      "prompt": "Did you remember seeing trash in the original picture?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "Configure statement text and expectedAnswer per stimulus in this file."
+      "analysisNote": "dummy placeholder"
     }
   ]
 }

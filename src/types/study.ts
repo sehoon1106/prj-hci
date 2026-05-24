@@ -81,8 +81,14 @@ export interface SurveyConfig {
   pages: SurveyPage[]
 }
 
+export type ImageType = 'env' | 'object' | 'people'
+export type EditType = 'congruent' | 'incongruent'
+
 export interface SlideDef {
   id: string
+  imageType: ImageType
+  /** Fixed per image: the AI-edited version is either congruent or incongruent. */
+  editType: EditType
   baselineSrc: string
   conditionSrc: Record<ConditionKey, string>
   conditionMediaType: Record<ConditionKey, 'image' | 'video'>

@@ -345,6 +345,22 @@ export function StudyFlow() {
   const [submitCompletedBeforeEndScreen, setSubmitCompletedBeforeEndScreen] = useState(false)
   const [debugOverlayOpen, setDebugOverlayOpen] = useState(true)
   const [discussionSkipSignal, setDiscussionSkipSignal] = useState(0)
+
+  // If the participant ends up at `post_survey` but the survey has no questions
+  // (e.g. external form flow or debug jump), auto-forward to `complete`. This MUST
+  // run in an effect — doing it inline during render previously called setState on
+  // the StudySessionProvider mid-render, which React reported as
+  // "Cannot update a component while rendering" + "Too many re-renders" and broke
+  // the whole app at the end of the study.
+  const postSurveyHasQuestions = bundle.postSurvey.pages.some((page) => page.items.length > 0)
+  useEffect(() => {
+    if (phase !== 'post_survey') return
+    if (postSurveyHasQuestions) return
+    setSubmitCompletedBeforeEndScreen(false)
+    logEvent('post_survey_auto_skip_empty', {})
+    logEvent('phase_enter', { phase: 'complete' })
+    setPhase('complete')
+  }, [phase, postSurveyHasQuestions, logEvent, setPhase])
   const canJumpToDiscussionGate = groupModeRequested && Boolean(groupId.trim())
   const canSkipCurrentDiscussion =
     groupModeRequested && phase === 'memory' && groupMemorySubphase === 'discussion'
@@ -1179,12 +1195,9 @@ export function StudyFlow() {
   }
 
   if (phase === 'post_survey') {
-    const hasPostSurveyQuestions = bundle.postSurvey.pages.some((page) => page.items.length > 0)
-    if (!hasPostSurveyQuestions) {
-      setSubmitCompletedBeforeEndScreen(false)
-      logEvent('post_survey_auto_skip_empty', {})
-      logEvent('phase_enter', { phase: 'complete' })
-      setPhase('complete')
+    if (!postSurveyHasQuestions) {
+      // The redirect to `complete` is scheduled in the effect above; render nothing
+      // for this frame instead of calling setState during render.
       return null
     }
     return renderWithGlobalDebug(

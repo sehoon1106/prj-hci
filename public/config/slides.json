@@ -1,12 +1,14 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "slides": [
     {
       "id": "slide-01",
-      "baselineSrc": "/stimuli/baseline/object-1-original.jpg",
+      "imageType": "env",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/env-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/object-1-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/object-1-edited.jpeg"
+        "no_edit": "/stimuli/baseline/env-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-1-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -15,10 +17,12 @@
     },
     {
       "id": "slide-02",
-      "baselineSrc": "/stimuli/baseline/object-2-original.jpg",
+      "imageType": "env",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/env-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/object-2-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/object-2-edited.png"
+        "no_edit": "/stimuli/baseline/env-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-2-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -27,10 +31,12 @@
     },
     {
       "id": "slide-03",
-      "baselineSrc": "/stimuli/baseline/object-3-original.jpg",
+      "imageType": "env",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/env-3-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/object-3-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/object-3-edited.png"
+        "no_edit": "/stimuli/baseline/env-3-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-3-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -39,10 +45,12 @@
     },
     {
       "id": "slide-04",
-      "baselineSrc": "/stimuli/baseline/object-4-original.jpg",
+      "imageType": "env",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/env-4-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/object-4-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/object-4-edited.jpeg"
+        "no_edit": "/stimuli/baseline/env-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/env-4-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -51,10 +59,12 @@
     },
     {
       "id": "slide-05",
-      "baselineSrc": "/stimuli/baseline/object-5-original.jpg",
+      "imageType": "object",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/object-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/object-5-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/object-5-edited.jpeg"
+        "no_edit": "/stimuli/baseline/object-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-1-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -63,10 +73,12 @@
     },
     {
       "id": "slide-06",
-      "baselineSrc": "/stimuli/baseline/people-1-original.jpg",
+      "imageType": "object",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/object-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/people-1-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/people-1-edited.png"
+        "no_edit": "/stimuli/baseline/object-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-2-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -75,10 +87,12 @@
     },
     {
       "id": "slide-07",
-      "baselineSrc": "/stimuli/baseline/people-2-original.jpg",
+      "imageType": "object",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/object-3-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/people-2-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/people-2-edited.png"
+        "no_edit": "/stimuli/baseline/object-3-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-3-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -87,10 +101,12 @@
     },
     {
       "id": "slide-08",
-      "baselineSrc": "/stimuli/baseline/people-3-original.png",
+      "imageType": "object",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/object-4-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/people-3-original.png",
-        "ai_edited_image": "/stimuli/ai-edited/people-3-edited.png"
+        "no_edit": "/stimuli/baseline/object-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/object-4-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -99,10 +115,12 @@
     },
     {
       "id": "slide-09",
-      "baselineSrc": "/stimuli/baseline/people-4-original.jpg",
+      "imageType": "people",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/people-1-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/people-4-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/people-4-edited.png"
+        "no_edit": "/stimuli/baseline/people-1-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-1-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -111,10 +129,12 @@
     },
     {
       "id": "slide-10",
-      "baselineSrc": "/stimuli/baseline/people-5-original.png",
+      "imageType": "people",
+      "editType": "congruent",
+      "baselineSrc": "/stimuli/baseline/people-2-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/people-5-original.png",
-        "ai_edited_image": "/stimuli/ai-edited/people-5-edited.png"
+        "no_edit": "/stimuli/baseline/people-2-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-2-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -123,10 +143,12 @@
     },
     {
       "id": "slide-11",
-      "baselineSrc": "/stimuli/baseline/env-1-original.jpg",
+      "imageType": "people",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/people-3-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/env-1-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/env-1-edited.jpeg"
+        "no_edit": "/stimuli/baseline/people-3-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-3-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
@@ -135,46 +157,12 @@
     },
     {
       "id": "slide-12",
-      "baselineSrc": "/stimuli/baseline/env-2-original.jpg",
+      "imageType": "people",
+      "editType": "incongruent",
+      "baselineSrc": "/stimuli/baseline/people-4-original.jpg",
       "conditionSrc": {
-        "no_edit": "/stimuli/baseline/env-2-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/env-2-edited.png"
-      },
-      "conditionMediaType": {
-        "no_edit": "image",
-        "ai_edited_image": "image"
-      }
-    },
-    {
-      "id": "slide-13",
-      "baselineSrc": "/stimuli/baseline/env-3-original.jpg",
-      "conditionSrc": {
-        "no_edit": "/stimuli/baseline/env-3-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/env-3-edited.jpeg"
-      },
-      "conditionMediaType": {
-        "no_edit": "image",
-        "ai_edited_image": "image"
-      }
-    },
-    {
-      "id": "slide-14",
-      "baselineSrc": "/stimuli/baseline/env-4-original.jpg",
-      "conditionSrc": {
-        "no_edit": "/stimuli/baseline/env-4-original.jpg",
-        "ai_edited_image": "/stimuli/ai-edited/env-4-edited.jpeg"
-      },
-      "conditionMediaType": {
-        "no_edit": "image",
-        "ai_edited_image": "image"
-      }
-    },
-    {
-      "id": "slide-15",
-      "baselineSrc": "/stimuli/baseline/env-5-original.png",
-      "conditionSrc": {
-        "no_edit": "/stimuli/baseline/env-5-original.png",
-        "ai_edited_image": "/stimuli/ai-edited/env-5-edited.jpeg"
+        "no_edit": "/stimuli/baseline/people-4-original.jpg",
+        "ai_edited_image": "/stimuli/ai-edited/people-4-edited.jpg"
       },
       "conditionMediaType": {
         "no_edit": "image",
