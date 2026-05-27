@@ -199,7 +199,10 @@ export function StudySessionProvider({
         submittedThisRunRef.current = true
         if (r.method === 'supabase') {
           setSubmitMethod('supabase')
-          setSubmitStatus('Saved to the server (Supabase).')
+          setSubmitStatus(
+            r.error ??
+              'Saved to the server (Supabase). A JSON backup was also saved to your downloads folder.',
+          )
         } else {
           setSubmitMethod('download')
           setSubmitStatus(

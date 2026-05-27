@@ -1945,19 +1945,20 @@ function SessionEndScreen({
           </>
         )}
         <p className="muted">
-          If <strong>a JSON file downloads</strong> instead of a Supabase confirmation, something went wrong with the
-          online save—please send that file to the <strong>researcher who recruited you</strong> so your data are not
-          lost.
+          A <strong>JSON backup</strong> of your responses (memory test, discussion log, surveys, and event log) is
+          always saved to your downloads folder when saving finishes. If Supabase upload fails, please send that file to
+          the <strong>researcher who recruited you</strong> so your data are not lost.
         </p>
       </header>
       {busy && !submitStatus ? (
         <p className="complete-saving">Uploading your responses… please wait.</p>
       ) : null}
       {submitStatus ? <p className="status-msg">{submitStatus}</p> : null}
-      {submitMethod === 'download' ? (
+      {submitStatus && !busy ? (
         <p className="muted small complete-download-note">
-          A JSON backup was saved in your browser downloads folder. Please email or otherwise share that file with your
-          researcher unless they tell you otherwise.
+          {submitMethod === 'download'
+            ? 'Supabase upload failed — please email or otherwise share the JSON backup in your downloads folder with your researcher.'
+            : 'A JSON backup matching the Supabase row format is in your downloads folder (study_submission + discussion_messages).'}
         </p>
       ) : null}
       {externalFormUrl ? (
