@@ -1,89 +1,89 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "items": [
     {
       "slideId": "slide-01",
       "maskedSrc": "/stimuli/masked/env-1-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-1?",
-      "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing a sunset in the original picture?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "env-1 (congruent edit) — wedding scene"
     },
     {
       "slideId": "slide-02",
       "maskedSrc": "/stimuli/masked/env-2-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-2?",
+      "prompt": "Did you remember seeing a mountain in the background of the original picture?",
       "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "analysisNote": "env-2 (congruent edit) — city landscape"
     },
     {
       "slideId": "slide-03",
       "maskedSrc": "/stimuli/masked/env-3-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-3?",
-      "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing snow under the dog in the original picture?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "env-3 (incongruent edit) — dog"
     },
     {
       "slideId": "slide-04",
       "maskedSrc": "/stimuli/masked/env-4-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in env-4?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing flood water on the ground in the original picture?",
+      "expectedAnswer": "agree",
+      "analysisNote": "env-4 (incongruent edit) — red truck"
     },
     {
       "slideId": "slide-05",
       "maskedSrc": "/stimuli/masked/object-1-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-1?",
-      "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing a fish in the original picture?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "obj-1 (congruent edit) — polar bear → polar bear with fish"
     },
     {
       "slideId": "slide-06",
       "maskedSrc": "/stimuli/masked/object-2-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-2?",
+      "prompt": "Did you remember seeing a birthday cake in the original picture?",
       "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "analysisNote": "obj-2 (congruent edit) — picnic → picnic with cake"
     },
     {
       "slideId": "slide-07",
       "maskedSrc": "/stimuli/masked/object-3-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-3?",
+      "prompt": "Did you remember seeing the man carrying a surfboard in the original picture?",
       "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "analysisNote": "obj-3 (incongruent edit) — person holding surfing board → person holding ironing board"
     },
     {
       "slideId": "slide-08",
       "maskedSrc": "/stimuli/masked/object-4-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in object-4?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing a large American flag in the original picture?",
+      "expectedAnswer": "agree",
+      "analysisNote": "obj-4 (incongruent edit) — handshake with US flag → handshake with beach umbrella"
     },
     {
       "slideId": "slide-09",
       "maskedSrc": "/stimuli/masked/people-1-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-1?",
-      "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing another player in the field in the original picture?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "people-1 (congruent edit) — soccer"
     },
     {
       "slideId": "slide-10",
       "maskedSrc": "/stimuli/masked/people-2-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-2?",
+      "prompt": "Did you remember seeing a beard on the man in the original picture?",
       "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "analysisNote": "people-2 (congruent edit) — NASA"
     },
     {
       "slideId": "slide-11",
       "maskedSrc": "/stimuli/masked/people-3-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-3?",
-      "expectedAnswer": "agree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing the man wearing an astronaut suit in the original picture?",
+      "expectedAnswer": "disagree",
+      "analysisNote": "people-3 (incongruent edit) — man in interview"
     },
     {
       "slideId": "slide-12",
       "maskedSrc": "/stimuli/masked/people-4-masked.jpg",
-      "prompt": "[DUMMY] Did you remember seeing the dummy element in people-4?",
-      "expectedAnswer": "disagree",
-      "analysisNote": "dummy placeholder"
+      "prompt": "Did you remember seeing an adult woman walking among the children in the original picture?",
+      "expectedAnswer": "agree",
+      "analysisNote": "people-4 (incongruent edit) — field trip children"
     }
   ]
 }
